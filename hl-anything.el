@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 0.0.6
+;; Version: 20141107.1845
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
