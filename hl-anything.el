@@ -1,7 +1,10 @@
+;;; hl-anything.el --- Highlight symbols, selections, enclosing parens and more
+;;
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 0.0.1
+;; Version: 0.0.6
+;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
 ;; This file is NOT part of GNU Emacs.
@@ -22,11 +25,11 @@
 ;;; Commentary:
 ;;
 ;; Main Features:
-;; 1. Words or selections highlights with different colors set. The highlights
-;;    are still visible even under current line highlight (`hl-line-mode' or 
-;;    `global-hl-line-mode' is enabled).
-;; 2. Search highlighted things at point in the current buffer.
-;; 3. Highlight outward and inward parentheses with different colors set.
+;; * Words or selections highlights with different colors set. The highlights
+;;   are still visible even under current line highlight (`hl-line-mode' or 
+;;   `global-hl-line-mode' is enabled).
+;; * Search highlighted things at point in the current buffer.
+;; * Highlight outward and inward parentheses with different colors set.
 ;;
 ;; Add the following to your .emacs file:
 ;; (require 'hl-anything)
@@ -41,16 +44,19 @@
 ;;   M-x `hl-find-thing-forwardly'
 ;;   M-x `hl-find-thing-backwardly'
 ;;
-;; Enable parenethese highlighting:
+;; Enable enclosing parenethese highlighting:
 ;;   M-x `hl-paren-mode'
 ;;
+;; Highlight things temporarily which means any action will delete the highlights.
+;;  (hl-highlight-keywords-temporarily '(("hello" hl-symbol-face)))
+;;
 ;; Extended Feature:
-;; 1. Additional faces set for temporary highlights.
+;; 1. Additional faces for temporary highlights.
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; TODO:
-;; - Implement `hl-highlight-thingatpt-global'.
+;; - Implement `hl-highlight-thingatpt-global' to highlight things globally.
 ;; - Save highlights before Emacs closed in order to restore them after Emacs
 ;;   opened?
 ;; 
@@ -79,19 +85,71 @@
 ;;
 ;; 2014-05-16 (0.0.1)
 ;;    - Initial release, fork from http://nschum.de/src/emacs/highlight-parentheses.
+;;
+;;; Code:
 
 ;; GNU Library.
 (require 'thingatpt)
 
-;; 3rd Party Library.
-(require 'hl-faces)
-
-(defgroup hl-anything-group nil
+(defgroup hl-anything nil
   "Highlight anything."
   :tag "hl-anything"
   :group 'faces
   :group 'font-lock
   :group 'matching)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Additional Faces ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defface hl-file-face
+  '((t (:foreground "blue" :underline t :weight bold)))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-number-face
+  '((t (:foreground "maroon1")))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-generic-variable-face
+  '((t (:foreground "black")))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-local-variable-face
+  '((t (:foreground "black")))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-global-variable-face
+  '((t (:foreground "black")))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-function-parameter-face
+  '((t (:underline t)))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-symbol-face
+  '((t (:background "gold" :foreground "black" :weight bold :height 1.5)))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-title-1-face
+  '((t (:background "LightCyan3" :foreground "gray40" :weight bold :height 1.5)))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-title-2-face
+  '((t (:background "LightCyan2" :foreground "gray40" :weight bold :height 1.3)))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
+
+(defface hl-title-3-face
+  '((t (:background "LightCyan1" :foreground "gray40" :weight bold :height 1.1)))
+  "Default face for highlighting keyword in definition window."
+  :group 'hl-anything)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Highlight things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -109,7 +167,7 @@
   "The foreground colors for `hl-highlight-thingatpt'."
   :type '(repeat color)
   :tag "Highlight Foreground Colors"
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-bg-colors '("firebrick"
                           "Orange"
@@ -124,21 +182,21 @@
   "The background colors for `hl-highlight-thingatpt'."
   :type '(repeat color)
   :tag "Highlight Background Colors"
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-before-find-thing-hook nil
   "Hook for doing something before `hl--thing-find' do the searching.
 This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-after-find-thing-hook nil
   "Hook for doing something after `hl--thing-find' do the searching.
 This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-highlight-special-faces '(hl-symbol-face
                                         hl-title-1-face
@@ -147,7 +205,7 @@ Maybe you'll need it for history and navigation feature."
   "For the faces that will be treat as highlights, which means overlays 
 will also be created for these faces under current line."
   :type '(repeat face)
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defvar hl-timer nil)
 
@@ -168,8 +226,7 @@ will also be created for these faces under current line."
 (make-variable-buffer-local 'hl-temp-keywords)
 
 (defvar hl-overlays-local nil
-  "Overlays for highlighted things. Prevent them to being hide by 
-`hl-line-mode'.")
+  "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
 (make-variable-buffer-local 'hl-overlays-local)
 
 (defvar hl-is-highlight-special-faces nil
@@ -430,37 +487,41 @@ Format: (START . END)"
 
 (defcustom hl-outward-paren-fg-colors '("black"
                                         "black")
-  "List of colors for the highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the highlighted parentheses. The list starts with the 
+the inside parentheses and moves outwards."
   :type '(repeat color)
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-outward-paren-bg-colors '("cyan"
                                         "gold")
-  "List of colors for the background highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the background highlighted parentheses. The list starts 
+with the the inside parentheses and moves outwards."
   :type '(repeat color)
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-inward-paren-fg-color "snow"
-  "List of colors for the background highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the background highlighted parentheses. The list starts 
+with the the inside parentheses and moves outwards."
   :type 'color
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defcustom hl-inward-paren-bg-color "magenta1"
-  "List of colors for the background highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the background highlighted parentheses. The list starts 
+with the the inside parentheses and moves outwards."
   :type 'color
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defface hl-paren-face nil
   "Face used for highlighting parentheses."
-  :group 'hl-anything-group)
+  :group 'hl-anything)
 
 (defvar hl-paren-timer nil)
 
@@ -557,7 +618,7 @@ Format: (START . END)"
 
 ;;;###autoload
 (define-minor-mode hl-paren-mode
-  "Minor mode to highlight the surrounding parentheses."
+  "Minor mode to highlight the enclosing parentheses and more."
   :lighter " hl-paren"
   (if hl-paren-mode
       (progn
@@ -567,3 +628,4 @@ Format: (START . END)"
     (remove-hook 'post-command-hook 'hl-paren-idle-begin t)))
 
 (provide 'hl-anything)
+;;; hl-anything.el ends here
