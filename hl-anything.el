@@ -483,7 +483,8 @@ Format: (START . END)"
 
 (defcustom hl-outward-paren-fg-colors '("black"
                                         "black")
-  "List of colors for the highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the highlighted parentheses.
+The list starts with the the inside parentheses and moves outwards."
   :type '(repeat color)
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
@@ -491,21 +492,24 @@ Format: (START . END)"
 
 (defcustom hl-outward-paren-bg-colors '("cyan"
                                         "gold")
-  "List of colors for the background highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the background highlighted parentheses.
+The list starts with the the inside parentheses and moves outwards."
   :type '(repeat color)
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
   :group 'hl-anything)
 
 (defcustom hl-inward-paren-fg-color "snow"
-  "List of colors for the background highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the background highlighted parentheses.
+The list starts with the the inside parentheses and moves outwards."
   :type 'color
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
   :group 'hl-anything)
 
 (defcustom hl-inward-paren-bg-color "magenta1"
-  "List of colors for the background highlighted parentheses. The list starts with the the inside parentheses and moves outwards."
+  "List of colors for the background highlighted parentheses.
+The list starts with the the inside parentheses and moves outwards."
   :type 'color
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
