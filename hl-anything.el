@@ -82,7 +82,6 @@
 
 ;; GNU Library.
 (require 'thingatpt)
-(require 'cl)
 
 ;; 3rd Party Library.
 (require 'hl-faces)
