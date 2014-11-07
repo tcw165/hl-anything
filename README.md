@@ -2,7 +2,7 @@
 hl-anything.el - Highlight Anything in Emacs
 ============================================
 
-![alt text](demo.gif "hl-anything demo")
+![hl-anything screenshot](demo.gif "hl-anything demo")
 
 What is it?
 -----------
