@@ -55,6 +55,10 @@ TODO
 * Save highlights before Emacs closed and restore them after Emacs opened next time.
 * Highlight Enclosing syntax in Emacs REGEX.
 
+Contribution
+------------
+Forks and pull requests are welcome!
+
 Lincense
 --------
 The MIT License (MIT)
