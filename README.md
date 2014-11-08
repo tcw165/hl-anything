@@ -13,7 +13,7 @@ Highlight symbols with different colors.
 
 Highlight selections with different colors.
 --------------------------------------------
-> Note: The selections can span cross spaces or line break.
+> Note: The selections can span across spaces or line break.
 ![hl-anything screenshot](demo/selection-hl.gif "hl-anything demo")
 
 Highlight things in a highlighted thing.
