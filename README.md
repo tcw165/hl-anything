@@ -2,16 +2,28 @@
 hl-anything.el - Highlight Anything in Emacs
 ============================================
 
-![alt text](demo.gif "hl-anything demo")
+![hl-anything screenshot](demo/basic.gif "hl-anything demo")
 
 What is it?
 -----------
 Things highlight in a text file is fundamental and very helpful to everyone.
 
-- Words or selections highlights with different colors set. The highlights are still visible even under current line highlight (`hl-line-mode` or `global-hl-line-mode`).
-- Search highlighted things at point in the current buffer.
-- Highlight outward and inward parentheses with different colors set.
-- Additional faces set for temporary highlights.
+* Symbols highlights with different colors. Note: The highlights are still visible even under current line highlight (`hl-line-mode` or `global-hl-line-mode`).
+![hl-anything screenshot](demo/symbol-hl.gif "hl-anything demo")
+
+* Selections highlights with different colors. Note: The selections can span cross spaces or line break.
+![hl-anything screenshot](demo/selection-hl.gif "hl-anything demo")
+
+* Highlight things in a highlighted thing.
+![hl-anything screenshot](demo/things-in-things.gif "hl-anything demo")
+
+* Highlight enclosing inward and outward parentheses.
+![hl-anything screenshot](demo/enclosing-paren.png "hl-anything demo")
+
+* Smartly select highlighted things and search forwardly or backwardly.
+![hl-anything screenshot](demo/search.gif "hl-anything demo")
+
+* Specify faces to be visible under current line highlight.
 
 Usage
 -----

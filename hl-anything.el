@@ -1,4 +1,4 @@
-;;; hl-anything.el --- Highlight symbols, selections, enclosing parens and more
+;;; hl-anything.el --- Highlight symbols, selections, enclosing parens and more.
 ;;
 ;; Copyright (C) 2014
 ;;
