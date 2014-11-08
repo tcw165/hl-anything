@@ -24,13 +24,19 @@
 ;;
 ;;; Commentary:
 ;;
-;; Main Features:
-;; * Words or selections highlights with different colors set. The highlights
-;;   are still visible even under current line highlight (`hl-line-mode' or 
-;;   `global-hl-line-mode' is enabled).
-;; * Search highlighted things at point in the current buffer.
-;; * Highlight outward and inward parentheses with different colors set.
+;; Highlight things in a text file makes you search things easily. It is
+;; fundamental and very helpful to everyone, enjoy!
+;; 
+;; * Highlight symbols with different colors.
+;;   Note: The highlights are still visible even under current line highlight
+;;   (`hl-line-mode' or `global-hl-line-mode' is enabled).
+;; * Highlight selections with different colors.
+;; * Highlight things in a highlighted thing.
+;; * Highlight enclosing inward and outward parentheses.
+;; * Select highlighted things smartly and search forwardly or backwardly.
 ;;
+;; Usage:
+;; ------
 ;; Add the following to your .emacs file:
 ;; (require 'hl-anything)
 ;;
@@ -50,14 +56,10 @@
 ;; Highlight things temporarily which means any action will delete the highlights.
 ;;  (hl-highlight-keywords-temporarily '(("hello" hl-symbol-face)))
 ;;
-;; Extended Feature:
-;; 1. Additional faces for temporary highlights.
-;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;; TODO:
-;; - Implement `hl-highlight-thingatpt-global' to highlight things globally.
-;; - Save highlights before Emacs closed in order to restore them after Emacs
+;; TODO:
+;; -----
+;; * Implement `hl-highlight-thingatpt-global' to highlight things globally.
+;; * Save highlights before Emacs closed in order to restore them after Emacs
 ;;   opened?
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,26 +67,26 @@
 ;;; Change Log:
 ;;
 ;; 2014-10-03 (0.0.6)
-;;    - Support highlight for special faces. See `hl-highlight-special-faces'.
+;; * Support highlight for special faces. See `hl-highlight-special-faces'.
 ;;
 ;; 2014-09-25 (0.0.5)
-;;    - Highlights are still visible under the current line when `hl-line-mode'
-;;      or `global-hl-line-mode' is enabled.
-;;    - Smartly select highlighted region.
-;;    - Highlight words cross multiple lines.
+;; * Highlights are still visible under the current line when `hl-line-mode'
+;;   or `global-hl-line-mode' is enabled.
+;; * Smartly select highlighted region.
+;; * Highlight words cross multiple lines.
 ;;
 ;; 2014-05-25 (0.0.4)
-;;    - Support searching thing. The regexp might be a symbol text or a selection
-;;      text.
+;; * Support searching thing. The regexp might be a symbol text or a selection
+;;   text.
 ;;
 ;; 2014-05-20 (0.0.3)
-;;    - Support one inward parentheses highlight for LISP.
+;; * Support one inward parentheses highlight for LISP.
 ;;
 ;; 2014-05-19 (0.0.2)
-;;    - Support multiple outward parentheses highlight for LISP.
+;; * Support multiple outward parentheses highlight for LISP.
 ;;
 ;; 2014-05-16 (0.0.1)
-;;    - Initial release, fork from http://nschum.de/src/emacs/highlight-parentheses.
+;; * Initial release, fork from http://nschum.de/src/emacs/highlight-parentheses.
 ;;
 ;;; Code:
 
