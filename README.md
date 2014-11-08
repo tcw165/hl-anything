@@ -1,6 +1,5 @@
 [![MELPA](http://melpa.org/packages/hl-anything-badge.svg)](http://melpa.org/#/hl-anything)
 
-============================================
 hl-anything.el - Highlight Anything in Emacs
 ============================================
 
