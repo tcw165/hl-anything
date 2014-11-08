@@ -61,6 +61,7 @@
 ;; * Implement `hl-highlight-thingatpt-global' to highlight things globally.
 ;; * Save highlights before Emacs closed in order to restore them after Emacs
 ;;   opened?
+;; * Highlight Enclosing syntax in Emacs REGEX.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

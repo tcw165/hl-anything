@@ -53,6 +53,7 @@ TODO
 ----
 * Support global highlights (which is highlights will appears in every buffers).
 * Save highlights before Emacs closed and restore them after Emacs opened next time.
+* Highlight Enclosing syntax in Emacs REGEX.
 
 Lincense
 --------
