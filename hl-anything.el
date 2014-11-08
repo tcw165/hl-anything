@@ -26,6 +26,9 @@
 ;;
 ;; Highlight things in a text file makes you search things easily. It is
 ;; fundamental and very helpful to everyone, enjoy!
+;;
+;; Check website for details:
+;; https://github.com/boyw165/hl-anything
 ;; 
 ;; * Highlight symbols with different colors.
 ;;   Note: The highlights are still visible even under current line highlight
