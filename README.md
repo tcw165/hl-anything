@@ -8,12 +8,12 @@ What is it?
 Highlight things in a text file makes you search things easily. It is fundamental and very helpful to everyone, enjoy!
 
 Highlight symbols with different colors.
------------------------------------------
+----------------------------------------
 > Note: The highlights are still visible even under current line highlight (`hl-line-mode` or `global-hl-line-mode`).
 ![hl-anything screenshot](demo/symbol-hl.gif "hl-anything demo")
 
 Highlight selections with different colors.
---------------------------------------------
+-------------------------------------------
 > Note: The selections can span across spaces or line break.
 ![hl-anything screenshot](demo/selection-hl.gif "hl-anything demo")
 
