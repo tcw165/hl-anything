@@ -357,7 +357,7 @@ Format: (START . END)"
 
 (defun hl-add-highlight-overlays ()
   (when (or (and hl-highlight-mode
-                 (require 'hl-line) hl-line-mode
+                 (require 'hl-line) (or hl-line-mode global-hl-line-mode)
                  (or hl-things-global hl-things-local hl-overlays-local
                      hl-temp-keywords))
             hl-is-highlight-special-faces)
