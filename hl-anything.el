@@ -70,26 +70,26 @@
 ;;
 ;;; Change Log:
 ;;
-;; 2014-10-03 (0.0.6)
+;; 2014-10-03
 ;; * Support highlight for special faces. See `hl-highlight-special-faces'.
 ;;
-;; 2014-09-25 (0.0.5)
+;; 2014-09-25
 ;; * Highlights are still visible under the current line when `hl-line-mode'
 ;;   or `global-hl-line-mode' is enabled.
 ;; * Smartly select highlighted region.
 ;; * Highlight words cross multiple lines.
 ;;
-;; 2014-05-25 (0.0.4)
+;; 2014-05-25
 ;; * Support searching thing. The regexp might be a symbol text or a selection
 ;;   text.
 ;;
-;; 2014-05-20 (0.0.3)
+;; 2014-05-20
 ;; * Support one inward parentheses highlight for LISP.
 ;;
-;; 2014-05-19 (0.0.2)
+;; 2014-05-19
 ;; * Support multiple outward parentheses highlight for LISP.
 ;;
-;; 2014-05-16 (0.0.1)
+;; 2014-05-16
 ;; * Initial release, fork from http://nschum.de/src/emacs/highlight-parentheses.
 ;;
 ;;; Code:
