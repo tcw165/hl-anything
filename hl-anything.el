@@ -242,7 +242,7 @@ will also be created for these faces under current line."
 (defun hl-thingatpt ()
   "Return a list, (REGEXP_STRING BEG END), on which the point is or just string
  of selection."
-  (let ((bound (if mark-active
+  (let ((bound (if (use-region-p)
                    (cons (region-beginning) (region-end))
                  (hl-bounds-of-thingatpt))))
     (when bound
