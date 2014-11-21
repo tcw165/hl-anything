@@ -452,7 +452,7 @@ Format: (START . END)"
     (when regexp
       ;; Hook before searching.
       (run-hook-with-args hl-before-find-thing-hook regexp)
-      (setq mark-active nil)
+      (deactivate-mark t)
       (goto-char (nth (if (> step 0)
                           ;; Move to end.
                           2
@@ -464,7 +464,7 @@ Format: (START . END)"
             (goto-char (match-end 0)))
         (set-marker (mark-marker) beg)
         (goto-char end))
-      (setq mark-active t)
+      (activate-mark)
       ;; Hook after searching.
       (run-hook-with-args hl-after-find-thing-hook regexp))))
 
