@@ -5,8 +5,6 @@
 hl-anything.el - Highlight Anything in Emacs
 ============================================
 
-What is it?
------------
 Highlight things in a text file makes you search things easily. It is fundamental and very helpful to everyone, enjoy!
 
 Highlight symbols with different colors.
