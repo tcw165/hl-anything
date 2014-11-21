@@ -72,8 +72,6 @@
 ;;
 ;; 2014-10-03
 ;; * Support highlight for special faces. See `hl-highlight-special-faces'.
-;;
-;; 2014-09-25
 ;; * Highlights are still visible under the current line when `hl-line-mode'
 ;;   or `global-hl-line-mode' is enabled.
 ;; * Smartly select highlighted region.
@@ -82,11 +80,7 @@
 ;; 2014-05-25
 ;; * Support searching thing. The regexp might be a symbol text or a selection
 ;;   text.
-;;
-;; 2014-05-20
 ;; * Support one inward parentheses highlight for LISP.
-;;
-;; 2014-05-19
 ;; * Support multiple outward parentheses highlight for LISP.
 ;;
 ;; 2014-05-16
@@ -191,14 +185,14 @@
   :group 'hl-anything)
 
 (defcustom hl-before-find-thing-hook nil
-  "Hook for doing something before `hl--thing-find' do the searching.
+  "Hook for doing something before `hl-find-thing' do the searching.
 This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
   :group 'hl-anything)
 
 (defcustom hl-after-find-thing-hook nil
-  "Hook for doing something after `hl--thing-find' do the searching.
+  "Hook for doing something after `hl-find-thing' do the searching.
 This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
