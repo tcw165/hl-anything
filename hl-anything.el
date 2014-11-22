@@ -70,6 +70,11 @@
 ;;
 ;;; Change Log:
 ;;
+;; 2014-12-25
+;; * Rename `hl-fg-colors' to `hl-highlight-foreground-colors'.
+;;          `hl-bg-colors' to `hl-highlight-background-colors'.
+;;   Note: Users should follow this change!
+;;
 ;; 2014-10-03
 ;; * Support highlight for special faces. See `hl-highlight-special-faces'.
 ;; * Highlights are still visible under the current line when `hl-line-mode'
@@ -154,31 +159,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Highlight things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defcustom hl-fg-colors '("snow"
-                          "snow"
-                          "black"
-                          "black"
-                          "snow"
-                          "snow"
-                          "snow"
-                          "black"
-                          "snow"
-                          "snow")
+(defcustom hl-highlight-foreground-colors '("snow"
+                                            "snow"
+                                            "black"
+                                            "black"
+                                            "snow"
+                                            "snow"
+                                            "snow"
+                                            "black"
+                                            "snow"
+                                            "snow")
   "The foreground colors for `hl-highlight-thingatpt'."
   :type '(repeat color)
   :tag "Highlight Foreground Colors"
   :group 'hl-anything)
 
-(defcustom hl-bg-colors '("firebrick"
-                          "Orange"
-                          "gold"
-                          "green1"
-                          "DeepSkyBlue1"
-                          "dark blue"
-                          "blue violet"
-                          "gray90"
-                          "gray60"
-                          "gray30")
+(defcustom hl-highlight-background-colors '("firebrick"
+                                            "Orange"
+                                            "gold"
+                                            "green1"
+                                            "DeepSkyBlue1"
+                                            "dark blue"
+                                            "blue violet"
+                                            "gray90"
+                                            "gray60"
+                                            "gray30")
   "The background colors for `hl-highlight-thingatpt'."
   :type '(repeat color)
   :tag "Highlight Background Colors"
@@ -207,18 +212,23 @@ will also be created for these faces under current line."
   :type '(repeat face)
   :group 'hl-anything)
 
+(defcustom hl-save-file "~/.emacs.d/.hl-save"
+  "A file storing information of highlights in the last session."
+  :type 'string
+  :group 'hl-anything)
+
 (defvar hl-timer nil)
 
 (defvar hl-index 0)
 
 (defvar hl-things-global nil
-  "A global things list. Format: ((REGEXP . FACESPEC) ...)")
+  "A global things list. Format: (MATCH1 MATCH2 ...)")
 
 (defvar hl-index-local 0)
 (make-variable-buffer-local 'hl-index-local)
 
 (defvar hl-things-local nil
-  "A local things list. Format: (REGEXP1 REGEXP2 ...)")
+  "A local things list. Format: (MATCH1 MATCH2 ...)")
 (make-variable-buffer-local 'hl-things-local)
 
 (defvar hl-temp-keywords nil
@@ -300,11 +310,15 @@ Format: (START . END)"
               (hl-bounds-of-valid-face org-face step))
           (backward-char step))))))
 
+(defun hl-sync-things-global ()
+  ;; TODO:
+  )
+
 (defun hl-highlight-internal (regexp &optional local)
-  (let* ((fg (nth hl-index-local hl-fg-colors))
-         (bg (nth hl-index-local hl-bg-colors))
-         (max (max (length hl-fg-colors)
-                   (length hl-bg-colors)))
+  (let* ((fg (nth hl-index-local hl-highlight-foreground-colors))
+         (bg (nth hl-index-local hl-highlight-background-colors))
+         (max (max (length hl-highlight-foreground-colors)
+                   (length hl-highlight-background-colors)))
          (next-index (1+ hl-index-local))
          facespec)
     (push regexp hl-things-local)
@@ -328,9 +342,11 @@ Format: (START . END)"
     (font-lock-fontify-buffer)))
 
 (defun hl-is-font-lock-keywords (regexp)
-  (assoc regexp (if (eq t (car font-lock-keywords))
-                    (cadr font-lock-keywords)
-                  font-lock-keywords)))
+  (let ((keyword (assoc regexp (if (eq t (car font-lock-keywords))
+                                   (cadr font-lock-keywords)
+                                 font-lock-keywords))))
+    (if (eq 'prepend (nth 3 keyword))
+        keyword nil)))
 
 (defun hl-highlight-pre-command ()
   ;; Remove temporarily keywords.
@@ -350,6 +366,10 @@ Format: (START . END)"
   (not (or (active-minibuffer-window))))
 
 (defun hl-add-highlight-overlays ()
+  "Add overlays only for things at current line when `hl-line-mode' or 
+`global-hl-line-mode' is enabled.
+Note: It is called by highlight engine in `post-command-hook'. You shound't 
+call this function directly!"
   (when (or (and hl-highlight-mode
                  (require 'hl-line) (or hl-line-mode global-hl-line-mode)
                  (or hl-things-global hl-things-local hl-overlays-local
@@ -387,8 +407,8 @@ Format: (START . END)"
 (defun hl-highlight-thingatpt-global ()
   "Toggle highlighting globally."
   (interactive)
-  ;; TODO:
-  )
+  (unless hl-things-global
+    (remove-hook 'find-file-hook 'hl-sync-things-global t)))
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-local ()
@@ -398,15 +418,15 @@ Format: (START . END)"
     (hl-highlight-mode 1))
   (let* ((thing (hl-thingatpt))
          (regexp (car thing)))
-    (when thing
-      (if (member regexp hl-things-local)
-          (hl-unhighlight-internal regexp t)
-        (hl-highlight-internal regexp t)))))
+    (and thing
+         (if (member regexp hl-things-local)
+             (hl-unhighlight-internal regexp t)
+           (hl-highlight-internal regexp t)))))
 
 ;;;###autoload
 (defun hl-highlight-keywords-temporarily (keywords)
-  "Highlight keywords locally and temporarily in the current buffer. Any action
- will remove the temporary highlights."
+  "Highlight KEYWORDS locally and temporarily in the current buffer. Any action
+ will remove the temporary highlights. See `font-lock-keywords'."
   (when keywords
     (setq hl-temp-keywords keywords)
     (font-lock-add-keywords nil keywords 'append)
