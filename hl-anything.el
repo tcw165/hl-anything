@@ -220,26 +220,28 @@ will also be created for these faces under current line."
 
 (defvar hl-timer nil)
 
-(defvar hl-things-global nil
-  "A global things list. Format: (MATCH1 MATCH2 ...)")
-
 (defvar hl-colors-index 0)
-(make-variable-buffer-local 'hl-colors-index)
 
-(defvar hl-things-local nil
-  "A local things list. Format: (MATCH1 MATCH2 ...)")
-(make-variable-buffer-local 'hl-things-local)
+(defvar hl-colors-index-local 0)
+(make-variable-buffer-local 'hl-colors-index-local)
+
+(defvar hl-highlights nil
+  "Highlights list. Format: (MATCH1 MATCH2 ...)")
+
+(defvar hl-highlights-local nil
+  "Local highlights list. Format: (MATCH1 MATCH2 ...)")
+(make-variable-buffer-local 'hl-highlights-local)
+
+(defvar hl-overlays nil
+  "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
+(make-variable-buffer-local 'hl-overlays)
 
 (defvar hl-temp-keywords nil
   "A local keywords list. See `font-lock-keywords' for its format.")
 (make-variable-buffer-local 'hl-temp-keywords)
 
-(defvar hl-overlays-local nil
-  "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
-(make-variable-buffer-local 'hl-overlays-local)
-
 (defvar hl-is-highlight-special-faces nil
-  "Force to create `hl-overlays-local' overlays.")
+  "Force to create `hl-overlays' overlays.")
 (make-variable-buffer-local 'hl-is-highlight-special-faces)
 
 (defun hl-thingatpt ()
@@ -322,27 +324,25 @@ Format: (START . END)"
   )
 
 (defun hl-highlight-internal (regexp &optional global)
-  (let* ((index (if global
-                    (default-value 'hl-colors-index)
-                  hl-colors-index))
+  (let* ((max (max (length hl-highlight-foreground-colors)
+                   (length hl-highlight-background-colors)))
+         (index (if global hl-colors-index hl-colors-index-local))
+         (next-index (1+ index))
+         (new-index (if (>= next-index max) 0 next-index))
          (fg (nth index hl-highlight-foreground-colors))
          (bg (nth index hl-highlight-background-colors))
-         (max (max (length hl-highlight-foreground-colors)
-                   (length hl-highlight-background-colors)))
-         (next-index (1+ index))
          facespec)
     ;; Prepare face for highlight.
     (and fg (push `(foreground-color . ,fg) facespec))
     (and bg (push `(background-color . ,bg) facespec))
     ;; Save highlight into database.
     (push regexp (if global
-                     hl-things-global
-                   hl-things-local))
+                     hl-highlights
+                   hl-highlights-local))
     ;; Update index of colors.
-    (funcall (symbol-function (if global
-                                  'set-default
-                                'set))
-             'hl-colors-index (if (>= next-index max) 0 next-index))
+    (if global
+        (setq hl-colors-index new-index)
+      (setq hl-colors-index-local new-index))
     ;; Fontify buffer(s).
     (mapc (lambda (buffer)
             (with-current-buffer buffer
@@ -353,18 +353,19 @@ Format: (START . END)"
             (list (current-buffer))))))
 
 (defun hl-unhighlight-internal (regexp &optional global)
-  (let ((keyword (hl-font-lock-keyword-p regexp)))
+  (let ((highlights (delete regexp (if global
+                                       hl-highlights
+                                     hl-highlights-local)))
+        (keyword (hl-font-lock-keyword-p regexp)))
+    ;; Remove highlight from database.
     (if global
-        (setq hl-things-global (delete regexp hl-things-global))
-      (setq hl-things-local (delete regexp hl-things-local)))
+        (setq hl-highlights highlights)
+      (setq hl-highlights-local highlights))
     ;; Update index of colors.
-    (unless (if global
-                hl-things-global
-              hl-things-local)
-      (funcall (symbol-function (if global
-                                    'set-default
-                                  'set))
-               'hl-colors-index 0))
+    (unless highlights
+      (if global
+          (setq hl-colors-index 0)
+        (setq hl-colors-index-local 0)))
     ;; Fontify buffer(s).
     (mapc (lambda (buffer)
             (with-current-buffer buffer
@@ -406,12 +407,14 @@ Note: It is called by highlight engine in `post-command-hook'. You shound't
 call this function directly!"
   (when (or (and hl-highlight-mode
                  (require 'hl-line) (or hl-line-mode global-hl-line-mode)
-                 (or hl-things-global hl-things-local hl-overlays-local
+                 (or hl-highlights
+                     hl-highlights-local
+                     hl-overlays
                      hl-temp-keywords))
             hl-is-highlight-special-faces)
     ;; Remove overlays.
-    (mapc 'delete-overlay hl-overlays-local)
-    (setq hl-overlays-local nil)
+    (mapc 'delete-overlay hl-overlays)
+    (setq hl-overlays nil)
     ;; Create overlays.
     (let ((end (line-end-position))
           bound)
@@ -433,7 +436,7 @@ call this function directly!"
                               (append facespec `((background-color . ,bg)))))
                       (overlay-put overlay 'face facespec))
                   (overlay-put overlay 'face face))
-                (push overlay hl-overlays-local)
+                (push overlay hl-overlays)
                 (goto-char (cdr bound)))
             (forward-char)))))))
 
@@ -446,10 +449,10 @@ call this function directly!"
   (let* ((thing (hl-thingatpt))
          (regexp (car thing)))
     (and thing
-         (if (member regexp hl-things-global)
+         (if (member regexp hl-highlights)
              (hl-unhighlight-internal regexp t)
            (hl-highlight-internal regexp t))))
-  (unless hl-things-global
+  (unless (default-value 'hl-highlights)
     (remove-hook 'find-file-hook 'hl-sync-things-global t)))
 
 ;;;###autoload
@@ -461,7 +464,7 @@ call this function directly!"
   (let* ((thing (hl-thingatpt))
          (regexp (car thing)))
     (and thing
-         (if (member regexp hl-things-local)
+         (if (member regexp hl-highlights-local)
              (hl-unhighlight-internal regexp)
            (hl-highlight-internal regexp)))))
 
@@ -480,17 +483,17 @@ call this function directly!"
 (defun hl-unhighlight-all-local ()
   "Remove all the highlights in buffer."
   (interactive)
-  (dolist (regexp hl-things-local)
+  (dolist (regexp hl-highlights-local)
     (hl-unhighlight-internal regexp))
-  (setq hl-colors-index 0))
+  (setq hl-colors-index-local 0))
 
 ;;;###autoload
 (defun hl-unhighlight-all-global ()
   "Remove all the highlights in buffer."
   (interactive)
-  (dolist (regexp hl-things-global)
+  (dolist (regexp hl-highlights)
     (hl-unhighlight-internal regexp t))
-  (setq-default hl-colors-index 0))
+  (setq hl-colors-index 0))
 
 ;;;###autoload
 (define-minor-mode hl-highlight-mode
