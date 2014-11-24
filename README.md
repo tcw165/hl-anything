@@ -33,6 +33,11 @@ Specify faces to be visible under current line highlight.
 ---------------------------------------------------------
 ![hl-anything screenshot](demo/face-hl.png "hl-anything demo")
 
+Save & Restore Highlights
+-------------------------
+* `M-x hl-save-highlights`
+* `M-x hl-restore-highlights`
+
 Usage
 -----
 Add the following code to your `.emacs` file:
