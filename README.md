@@ -5,8 +5,6 @@
 hl-anything.el - Highlight Anything in Emacs
 ============================================
 
-What is it?
------------
 Highlight things in a text file makes you search things easily. It is fundamental and very helpful to everyone, enjoy!
 
 Highlight symbols with different colors.
@@ -35,26 +33,36 @@ Specify faces to be visible under current line highlight.
 ---------------------------------------------------------
 ![hl-anything screenshot](demo/face-hl.png "hl-anything demo")
 
+Save & Restore Highlights
+-------------------------
+* `M-x hl-save-highlights`
+* `M-x hl-restore-highlights`
+
 Usage
 -----
 Add the following code to your `.emacs` file:
-```cl
+``` lisp
 (require 'hl-anything)
+(hl-highlight-mode 1)
 ```
 
-Interactive Functions:
-* Toggle highlighting things at point: `M-x hl-highlight-thingatpt-local`
-* Remove all highlights: `M-x hl-unhighlight-all-local`
+Useful Functions:
+* Toggle highlight globally in all buffers: `M-x hl-highlight-thingatpt-global`
+* Remove all highlights in all buffers:  or `M-x hl-unhighlight-all-global`
+* Toggle highlight locally in current buffer (every buffers have its own copy): `M-x hl-highlight-thingatpt-local`
+* Remove all highlights in current buffer: `M-x hl-unhighlight-all-local`
 * Search highlights: `M-x hl-find-thing-forwardly` or `M-x hl-find-thing-backwardly`
-* Enable parenethese highlighting: `M-x hl-paren-mode`
+* Save highlights both of local and global highlights: `M-x hl-save-highlights`
+* Restore highlights both of local and global highlights: `M-x hl-restore-highlights`
+* Enable parenethese highlight: `M-x hl-paren-mode`
 
 Customization:
 * Change highlight colors: `M-x customize-group` Enter `hl-anything`.
+* `hl-highlight-foreground-colors` and `hl-highlight-background-colors` are foreground and background colors setting.
+* `hl-highlight-save-file` is a file storing highlights; `hl-auto-save-restore-highlights` is to automatically save and restore highlights.
 
 TODO
 ----
-* Support global highlights (which is highlights will appears in every buffers).
-* Save highlights before Emacs closed and restore them after Emacs opened next time.
 * Highlight Enclosing syntax in Emacs REGEX.
 
 Contribution
@@ -65,7 +73,7 @@ Lincense
 --------
 The MIT License (MIT)
 
-Copyright (c) 2014 boyw165
+Copyright (c) 2014-2015 boyw165
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

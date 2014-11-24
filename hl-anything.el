@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20141107.1845
+;; Version: 20141124.1700
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -25,10 +25,10 @@
 ;;; Commentary:
 ;;
 ;; Highlight things in a text file makes you search things easily. It is
-;; fundamental and very helpful to everyone, enjoy!
+;; very helpful to everyone, enjoy!
 ;;
-;; Check website for details:
-;; https://github.com/boyw165/hl-anything
+;; > Check website for details:
+;; > https://github.com/boyw165/hl-anything
 ;; 
 ;; * Highlight symbols with different colors.
 ;;   Note: The highlights are still visible even under current line highlight
@@ -36,18 +36,29 @@
 ;; * Highlight selections with different colors.
 ;; * Highlight things in a highlighted thing.
 ;; * Highlight enclosing inward and outward parentheses.
+;; * Highlight locally in current buffer or globally in all the buffers.
+;; * Smartly save highlights before killing Emacs and restore them next time.
 ;; * Select highlighted things smartly and search forwardly or backwardly.
 ;;
 ;; Usage:
 ;; ------
 ;; Add the following to your .emacs file:
 ;; (require 'hl-anything)
+;; (hl-highlight-mode 1)
 ;;
-;; Toggle highlighting things at point:
+;; Toggle highlight locally in current buffer:
 ;;   M-x `hl-highlight-thingatpt-local'
+;;
+;; Toggle highlight globally in all buffers:
+;;   M-x `hl-highlight-thingatpt-global'
 ;;
 ;; Remove all highlights:
 ;;   M-x `hl-unhighlight-all-local'
+;;   M-x `hl-unhighlight-all-global'
+;;
+;; Save & Restore highlights:
+;;   M-x `hl-save-highlights'
+;;   M-x `hl-restore-highlights'
 ;;
 ;; Search highlights:
 ;;   M-x `hl-find-thing-forwardly'
@@ -61,19 +72,21 @@
 ;;
 ;; TODO:
 ;; -----
-;; * Implement `hl-highlight-thingatpt-global' to highlight things globally.
-;; * Save highlights before Emacs closed in order to restore them after Emacs
-;;   opened?
-;; * Highlight Enclosing syntax in Emacs REGEX.
+;; * Highlight enclosing syntax in REGEXP.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Change Log:
 ;;
+;; 2014-11-24
+;; * Rename `hl-fg-colors' to `hl-highlight-foreground-colors'.
+;;          `hl-bg-colors' to `hl-highlight-background-colors'.
+;;   Note: Users should update your codes refer to the patch!
+;; * Support `hl-highlight-thingatpt-global' and `hl-unhighlight-all-global'.
+;; * Support `hl-save-highlights' and `hl-restore-highlights'.
+;;
 ;; 2014-10-03
 ;; * Support highlight for special faces. See `hl-highlight-special-faces'.
-;;
-;; 2014-09-25
 ;; * Highlights are still visible under the current line when `hl-line-mode'
 ;;   or `global-hl-line-mode' is enabled.
 ;; * Smartly select highlighted region.
@@ -82,15 +95,13 @@
 ;; 2014-05-25
 ;; * Support searching thing. The regexp might be a symbol text or a selection
 ;;   text.
-;;
-;; 2014-05-20
 ;; * Support one inward parentheses highlight for LISP.
-;;
-;; 2014-05-19
 ;; * Support multiple outward parentheses highlight for LISP.
 ;;
 ;; 2014-05-16
-;; * Initial release, fork from http://nschum.de/src/emacs/highlight-parentheses.
+;; * Initial release, inspired from:
+;;   https://github.com/nschum/highlight-parentheses.el
+;;   https://github.com/nschum/highlight-symbol.el
 ;;
 ;;; Code:
 
@@ -104,102 +115,114 @@
   :group 'font-lock
   :group 'matching)
 
+(defgroup hl-paren nil
+  "Parentheses highlight."
+  :tag "hl-paren"
+  :group 'hl-anything)
+
+(defgroup hl-face nil
+  "Additional faces for `hl-anything'."
+  :tag "hl-face"
+  :group 'hl-anything)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Additional Faces ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defface hl-file-face
   '((t (:foreground "blue" :underline t :weight bold)))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-number-face
   '((t (:foreground "maroon1")))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-generic-variable-face
   '((t (:foreground "black")))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-local-variable-face
   '((t (:foreground "black")))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-global-variable-face
   '((t (:foreground "black")))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-function-parameter-face
   '((t (:underline t)))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-symbol-face
   '((t (:background "gold" :foreground "black" :weight bold :height 1.5)))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-title-1-face
   '((t (:background "LightCyan3" :foreground "gray40" :weight bold :height 1.5)))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-title-2-face
   '((t (:background "LightCyan2" :foreground "gray40" :weight bold :height 1.3)))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 (defface hl-title-3-face
   '((t (:background "LightCyan1" :foreground "gray40" :weight bold :height 1.1)))
   "Default face for highlighting keyword in definition window."
-  :group 'hl-anything)
+  :group 'hl-face)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Highlight things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defcustom hl-fg-colors '("snow"
-                          "snow"
-                          "black"
-                          "black"
-                          "snow"
-                          "snow"
-                          "snow"
-                          "black"
-                          "snow"
-                          "snow")
-  "The foreground colors for `hl-highlight-thingatpt'."
+(defcustom hl-highlight-foreground-colors '("snow"
+                                            "snow"
+                                            "black"
+                                            "black"
+                                            "snow"
+                                            "snow"
+                                            "snow"
+                                            "black"
+                                            "snow"
+                                            "snow")
+  "The foreground colors for `hl-highlight-thingatpt-global' and
+`hl-highlight-thingatpt-local'."
   :type '(repeat color)
   :tag "Highlight Foreground Colors"
   :group 'hl-anything)
 
-(defcustom hl-bg-colors '("firebrick"
-                          "Orange"
-                          "gold"
-                          "green1"
-                          "DeepSkyBlue1"
-                          "dark blue"
-                          "blue violet"
-                          "gray90"
-                          "gray60"
-                          "gray30")
-  "The background colors for `hl-highlight-thingatpt'."
+(defcustom hl-highlight-background-colors '("firebrick"
+                                            "Orange"
+                                            "gold"
+                                            "green1"
+                                            "DeepSkyBlue1"
+                                            "dark blue"
+                                            "blue violet"
+                                            "gray90"
+                                            "gray60"
+                                            "gray30")
+  "The background colors for `hl-highlight-thingatpt-global' and
+`hl-highlight-thingatpt-local'."
   :type '(repeat color)
   :tag "Highlight Background Colors"
   :group 'hl-anything)
 
 (defcustom hl-before-find-thing-hook nil
-  "Hook for doing something before `hl--thing-find' do the searching.
-This hook has one argument, (REGEXP_STRING BEG END).
+  "Hook for doing something before `hl-find-thing-forwardly' and 
+`hl-find-thing-backwardly'. This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
   :group 'hl-anything)
 
 (defcustom hl-after-find-thing-hook nil
-  "Hook for doing something after `hl--thing-find' do the searching.
-This hook has one argument, (REGEXP_STRING BEG END).
+  "Hook for doing something after `hl-find-thing-forwardly' and 
+`hl-find-thing-backwardly'. This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
   :group 'hl-anything)
@@ -209,35 +232,60 @@ Maybe you'll need it for history and navigation feature."
                                         hl-title-2-face
                                         hl-title-3-face)
   "For the faces that will be treat as highlights, which means overlays 
-will also be created for these faces under current line."
+will also be created for these faces at current line."
   :type '(repeat face)
+  :group 'hl-anything)
+
+(defcustom hl-highlight-save-file "~/.emacs.d/.hl-save"
+  "A file storing highlights. Call `hl-restore-highlights' to restore highlights.
+See `hl-save-highlights' for detailed format."
+  :type 'string
+  :group 'hl-anything)
+
+(defcustom hl-auto-save-restore-highlights t
+  "TRUE to indicate storing highlights before killing Emacs and restore them next 
+time. You can alos call `hl-restore-highlights' manually to restore highlights;
+Or call `hl-save-highlights' to save highlights."
+  :type 'boolean
   :group 'hl-anything)
 
 (defvar hl-timer nil)
 
-(defvar hl-index 0)
+(defvar hl-colors-index 0)
 
-(defvar hl-things-global nil
-  "A global things list. Format: ((REGEXP . FACESPEC) ...)")
+(defvar hl-colors-index-local 0)
+(make-variable-buffer-local 'hl-colors-index-local)
 
-(defvar hl-index-local 0)
-(make-variable-buffer-local 'hl-index-local)
+(defvar hl-highlights nil
+  "Highlights list. Format: (MATCH1 MATCH2 ...)")
 
-(defvar hl-things-local nil
-  "A local things list. Format: (REGEXP1 REGEXP2 ...)")
-(make-variable-buffer-local 'hl-things-local)
+(defvar hl-highlights-local nil
+  "Local highlights list. Format: (MATCH1 MATCH2 ...)")
+(make-variable-buffer-local 'hl-highlights-local)
+
+(defvar hl-overlays nil
+  "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
+(make-variable-buffer-local 'hl-overlays)
 
 (defvar hl-temp-keywords nil
   "A local keywords list. See `font-lock-keywords' for its format.")
 (make-variable-buffer-local 'hl-temp-keywords)
 
-(defvar hl-overlays-local nil
-  "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
-(make-variable-buffer-local 'hl-overlays-local)
-
 (defvar hl-is-highlight-special-faces nil
-  "Force to create `hl-overlays-local' overlays.")
+  "Force to create `hl-overlays' overlays.")
 (make-variable-buffer-local 'hl-is-highlight-special-faces)
+
+(defun hl-export (filename data)
+  (and (file-writable-p filename)
+       (with-temp-file filename
+         (insert (let (print-length)
+                   (prin1-to-string data))))))
+
+(defun hl-import (filename)
+  (and (file-exists-p filename)
+       (with-temp-buffer
+         (insert-file-contents-literally filename)
+         (read (buffer-string)))))
 
 (defun hl-thingatpt ()
   "Return a list, (REGEXP_STRING BEG END), on which the point is or just string
@@ -306,39 +354,80 @@ Format: (START . END)"
               (hl-bounds-of-valid-face org-face step))
           (backward-char step))))))
 
-(defun hl-highlight-internal (regexp &optional local)
-  (let* ((fg (nth hl-index-local hl-fg-colors))
-         (bg (nth hl-index-local hl-bg-colors))
-         (max (max (length hl-fg-colors)
-                   (length hl-bg-colors)))
-         (next-index (1+ hl-index-local))
-         facespec)
-    (push regexp hl-things-local)
-    (setq hl-index-local (if (>= next-index max) 0 next-index))
-    ;; Highlight.
-    (when fg
-      (setq facespec (append facespec `((foreground-color . ,fg)))))
-    (when bg
-      (setq facespec (append facespec `((background-color . ,bg)))))
-    (font-lock-add-keywords nil `((,regexp 0 ',facespec prepend)) 'append)
-    (font-lock-fontify-buffer)))
+(defun hl-font-lock-keyword-p (regexp)
+  (let ((keyword (assoc regexp (if (eq t (car font-lock-keywords))
+                                   (cadr font-lock-keywords)
+                                 font-lock-keywords))))
+    (if (eq 'prepend (nth 3 keyword))
+        keyword nil)))
 
-(defun hl-unhighlight-internal (regexp &optional local)
-  (let* ((keyword (hl-is-font-lock-keywords regexp)))
-    (setq hl-things-local (delete regexp hl-things-local))
-    (unless hl-things-local
-      (setq hl-index-local 0))
-    ;; Unhighlight.
-    (while (setq keyword (hl-is-font-lock-keywords regexp))
-      (font-lock-remove-keywords nil `(,keyword)))
-    (font-lock-fontify-buffer)))
+(defun hl-buffer-list (&optional only-file)
+  (delq nil (mapcar (lambda (buffer)
+                      (if only-file
+                          (and (buffer-live-p buffer)
+                               (buffer-file-name buffer)
+                               buffer)
+                        (and (buffer-live-p buffer)
+                             buffer)))
+                    (buffer-list))))
 
-(defun hl-is-font-lock-keywords (regexp)
-  (assoc regexp (if (eq t (car font-lock-keywords))
-                    (cadr font-lock-keywords)
-                  font-lock-keywords)))
+(defmacro hl-highlight-internal (regexp database index)
+  "Use `font-lock-add-keywords' to add keywords and add overlays for specific 
+FACESPEC jsut at current line. See `hl-add-highlight-overlays'."
+  (declare (indent 0) (debug t))
+  `(let* ((max (max (length hl-highlight-foreground-colors)
+                    (length hl-highlight-background-colors)))
+          (next-index (1+ ,index))
+          (new-index (if (>= next-index max) 0 next-index))
+          (fg (nth ,index hl-highlight-foreground-colors))
+          (bg (nth ,index hl-highlight-background-colors))
+          facespec)
+     ;; Prepare face for highlight.
+     (and fg (push `(foreground-color . ,fg) facespec))
+     (and bg (push `(background-color . ,bg) facespec))
+     ;; Save highlight into database.
+     (push ,regexp ,database)
+     ;; Update index of colors.
+     (setq ,index new-index)
+     ;; Fontify buffer(s).
+     (mapc (lambda (buffer)
+             (with-current-buffer buffer
+               (font-lock-add-keywords nil
+                                       `((,regexp 0 ',facespec prepend))
+                                       'append)
+               (font-lock-fontify-buffer)))
+           (if (eq ,database hl-highlights)
+               (hl-buffer-list t)
+             `(,(current-buffer))))))
+
+(defmacro hl-unhighlight-internal (regexp database index)
+  "Use `font-lock-remove-keywords' to remove keywords."
+  (declare (indent 0) (debug t))
+  `(let ((keyword (hl-font-lock-keyword-p ,regexp)))
+     ;; Remove highlight from database.
+     (setq ,database (delete ,regexp ,database))
+     ;; Update index of colors.
+     (unless ,database
+       (setq ,index 0))
+     ;; Fontify buffer(s).
+     (mapc (lambda (buffer)
+             (with-current-buffer buffer
+               (while (setq keyword (hl-font-lock-keyword-p ,regexp))
+                 (font-lock-remove-keywords nil (list keyword)))
+               (font-lock-fontify-buffer)))
+           (if (eq ,database hl-highlights)
+               (hl-buffer-list t)
+             `(,(current-buffer))))))
+
+(defun hl-sync-global-highlights ()
+  "Synchronize global highlights at `find-file-hook'."
+  (let ((index 0)
+        highlights)
+    (dolist (regexp (reverse hl-highlights))
+      (hl-highlight-internal regexp highlights index))))
 
 (defun hl-highlight-pre-command ()
+  "Remove temporary highlights and cancel `hl-timer'."
   ;; Remove temporarily keywords.
   (when hl-temp-keywords
     (font-lock-remove-keywords nil hl-temp-keywords)
@@ -349,6 +438,7 @@ Format: (START . END)"
     (setq hl-timer nil)))
 
 (defun hl-highlight-post-command ()
+  "Use idle timer, `hl-timer' to update overlays for highlights."
   (when (hl-is-begin)
     (setq hl-timer (run-with-idle-timer 0 nil 'hl-add-highlight-overlays))))
 
@@ -356,14 +446,20 @@ Format: (START . END)"
   (not (or (active-minibuffer-window))))
 
 (defun hl-add-highlight-overlays ()
+  "Add overlays only for things at current line when `hl-line-mode' or 
+`global-hl-line-mode' is enabled.
+Note: It is called by highlight engine in `post-command-hook'. You shound't 
+call this function directly!"
   (when (or (and hl-highlight-mode
                  (require 'hl-line) (or hl-line-mode global-hl-line-mode)
-                 (or hl-things-global hl-things-local hl-overlays-local
+                 (or hl-highlights
+                     hl-highlights-local
+                     hl-overlays
                      hl-temp-keywords))
             hl-is-highlight-special-faces)
     ;; Remove overlays.
-    (mapc 'delete-overlay hl-overlays-local)
-    (setq hl-overlays-local nil)
+    (mapc 'delete-overlay hl-overlays)
+    (setq hl-overlays nil)
     ;; Create overlays.
     (let ((end (line-end-position))
           bound)
@@ -385,34 +481,62 @@ Format: (START . END)"
                               (append facespec `((background-color . ,bg)))))
                       (overlay-put overlay 'face facespec))
                   (overlay-put overlay 'face face))
-                (push overlay hl-overlays-local)
+                (push overlay hl-overlays)
                 (goto-char (cdr bound)))
             (forward-char)))))))
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-global ()
-  "Toggle highlighting globally."
-  (interactive)
-  ;; TODO:
-  )
-
-;;;###autoload
-(defun hl-highlight-thingatpt-local ()
-  "Toggle highlighting locally in the current buffer."
+  "Toggle global highlight."
   (interactive)
   (unless hl-highlight-mode
     (hl-highlight-mode 1))
   (let* ((thing (hl-thingatpt))
          (regexp (car thing)))
-    (when thing
-      (if (member regexp hl-things-local)
-          (hl-unhighlight-internal regexp t)
-        (hl-highlight-internal regexp t)))))
+    (and thing
+         (if (member regexp hl-highlights)
+             (hl-unhighlight-internal regexp
+                                      hl-highlights hl-colors-index)
+           (hl-highlight-internal regexp
+                                  hl-highlights hl-colors-index)))))
+
+;;;###autoload
+(defun hl-unhighlight-all-global ()
+  "Remove all global highlights."
+  (interactive)
+  (dolist (regexp hl-highlights)
+    (hl-unhighlight-internal regexp
+                             hl-highlights hl-colors-index))
+  (setq hl-colors-index 0))
+
+;;;###autoload
+(defun hl-highlight-thingatpt-local ()
+  "Toggle local highlights in the current buffer."
+  (interactive)
+  (unless hl-highlight-mode
+    (hl-highlight-mode 1))
+  (let* ((thing (hl-thingatpt))
+         (regexp (car thing)))
+    (and thing
+         (if (member regexp hl-highlights-local)
+             (hl-unhighlight-internal regexp
+                                      hl-highlights-local hl-colors-index-local)
+           (hl-highlight-internal regexp
+                                  hl-highlights-local hl-colors-index-local)))))
+
+;;;###autoload
+(defun hl-unhighlight-all-local ()
+  "Remove all local highlights in buffer."
+  (interactive)
+  (dolist (regexp hl-highlights-local)
+    (hl-unhighlight-internal regexp
+                             hl-highlights-local hl-colors-index-local))
+  (setq hl-colors-index-local 0))
 
 ;;;###autoload
 (defun hl-highlight-keywords-temporarily (keywords)
-  "Highlight keywords locally and temporarily in the current buffer. Any action
- will remove the temporary highlights."
+  "Highlight KEYWORDS locally and temporarily in the current buffer. Any action
+ will remove the temporary highlights. See `font-lock-keywords'."
   (when keywords
     (setq hl-temp-keywords keywords)
     (font-lock-add-keywords nil keywords 'append)
@@ -421,24 +545,84 @@ Format: (START . END)"
       (hl-highlight-mode 1))))
 
 ;;;###autoload
-(defun hl-unhighlight-all-local ()
-  "Remove all the highlights in buffer."
+(defun hl-save-highlights ()
+  "Save highlights in `hl-highlight-save-file' file.
+The format:
+  (:global HL-HIGHLIGHTS
+   :local (FILE . HL-HIGHLIGHTS-LOCAL))
+- HL-HIGHLIGHTS is `hl-highlights'.
+- FILE is filename.
+- HL-HIGHLIGHTS-LOCAL is `hl-highlights-local'.
+You can call `hl-restore-highlights' to revert highlights of last session."
   (interactive)
-  (dolist (regexp hl-things-local)
-    (hl-unhighlight-internal regexp t))
-  (setq hl-index-local 0))
+  (let (save)
+    ;; Save global highlights.
+    (setq save (plist-put save :global (reverse hl-highlights)))
+    ;; Save local highlights.
+    (let (local)
+      (dolist (buffer (hl-buffer-list t))
+        (with-current-buffer buffer
+          (and hl-highlights-local
+               (push (cons (buffer-file-name)
+                           (reverse hl-highlights-local))
+                     local))))
+      (setq save (plist-put save :local local)))
+    ;; Export.
+    (hl-export hl-highlight-save-file save)))
+
+;;;###autoload
+(defun hl-restore-highlights ()
+  "Load highligts from `hl-highlight-save-file' file. Before calling this, you 
+could call `hl-save-highlights' function."
+  (interactive)
+  (unless hl-highlight-mode
+    (hl-highlight-mode 1))
+  ;; Import.
+  (let ((save (hl-import hl-highlight-save-file)))
+    ;; Restore global highlights.
+    (hl-unhighlight-all-global)
+    (let ((highlights (plist-get save :global)))
+      (dolist (regexp highlights)
+        (hl-highlight-internal regexp
+                               hl-highlights hl-colors-index)))
+    ;; Restore local highlights.
+    (let ((local (plist-get save :local))
+          highlights)
+      (dolist (buffer (hl-buffer-list t))
+        (with-current-buffer buffer
+          (when (setq highlights (assoc (buffer-file-name) local))
+            (hl-unhighlight-all-local)
+            (dolist (regexp (cdr highlights))
+              (hl-highlight-internal regexp
+                                     hl-highlights-local
+                                     hl-colors-index-local))))))))
 
 ;;;###autoload
 (define-minor-mode hl-highlight-mode
-  "Provide convenient menu items and tool-bar items for project feature."
+  "Enable highligt engine to do:
+- Show highlight over current line highlight (`hl-line-mode' or 
+  `global-hl-line-mode').
+- Synchronize global highlights.
+- Save highlights before killing Emacs and restore them next time."
   :lighter " hl-highlight"
+  :global t
   (if hl-highlight-mode
       (progn
-        (add-hook 'pre-command-hook 'hl-highlight-pre-command t t)
-        (add-hook 'post-command-hook 'hl-highlight-post-command t t)
+        (add-hook 'pre-command-hook 'hl-highlight-pre-command t)
+        (add-hook 'post-command-hook 'hl-highlight-post-command t)
+        (add-hook 'find-file-hook 'hl-sync-global-highlights t)
+        (add-hook 'kill-emacs-hook 'hl-save-highlights t)
+        ;; Load saved highlights and add `kill-emacs-hook' when module is
+        ;; loaded 1st time.
+        (and load-file-name
+             hl-auto-save-restore-highlights
+             (hl-restore-highlights))
+        ;; 1st time to add highlights overlays.
         (hl-add-highlight-overlays))
-    (remove-hook 'pre-command-hook 'hl-highlight-pre-command t)
-    (remove-hook 'post-command-hook 'hl-highlight-post-command t)))
+    (remove-hook 'pre-command-hook 'hl-highlight-pre-command)
+    (remove-hook 'post-command-hook 'hl-highlight-post-command)
+    (remove-hook 'find-file-hook 'hl-sync-global-highlights t)
+    (remove-hook 'kill-emacs-hook 'hl-save-highlights t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Select & Search Highlighted Things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -452,7 +636,7 @@ Format: (START . END)"
     (when regexp
       ;; Hook before searching.
       (run-hook-with-args hl-before-find-thing-hook regexp)
-      (setq mark-active nil)
+      (deactivate-mark t)
       (goto-char (nth (if (> step 0)
                           ;; Move to end.
                           2
@@ -464,7 +648,7 @@ Format: (START . END)"
             (goto-char (match-end 0)))
         (set-marker (mark-marker) beg)
         (goto-char end))
-      (setq mark-active t)
+      (activate-mark)
       ;; Hook after searching.
       (run-hook-with-args hl-after-find-thing-hook regexp))))
 
@@ -493,50 +677,44 @@ Format: (START . END)"
 
 (defcustom hl-outward-paren-fg-colors '("black"
                                         "black")
-  "List of colors for the highlighted parentheses. The list starts with the 
-the inside parentheses and moves outwards."
+  "Foreground colors for outward parentheses highlights."
   :type '(repeat color)
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything)
+  :group 'hl-paren)
 
 (defcustom hl-outward-paren-bg-colors '("cyan"
                                         "gold")
-  "List of colors for the background highlighted parentheses. The list starts 
-with the the inside parentheses and moves outwards."
+  "Background colors for outward parentheses highlights."
   :type '(repeat color)
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything)
+  :group 'hl-paren)
 
 (defcustom hl-inward-paren-fg-color "snow"
-  "List of colors for the background highlighted parentheses. The list starts 
-with the the inside parentheses and moves outwards."
+  "Foreground colors for inward the parentheses highlights."
   :type 'color
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything)
+  :group 'hl-paren)
 
 (defcustom hl-inward-paren-bg-color "magenta1"
-  "List of colors for the background highlighted parentheses. The list starts 
-with the the inside parentheses and moves outwards."
+  "Background colors for inward parentheses highlights."
   :type 'color
   :initialize 'custom-initialize-default
   :set 'hl-paren-custom-set
-  :group 'hl-anything)
+  :group 'hl-paren)
 
 (defface hl-paren-face nil
-  "Face used for highlighting parentheses."
-  :group 'hl-anything)
+  "Template face used for parentheses highlight."
+  :group 'hl-paren)
 
 (defvar hl-paren-timer nil)
 
-(defvar hl-outward-parens nil
-  "This buffers currently active overlays.")
+(defvar hl-outward-parens nil)
 (make-variable-buffer-local 'hl-outward-parens)
 
-(defvar hl-inward-parens nil
-  "This buffers currently active overlays.")
+(defvar hl-inward-parens nil)
 (make-variable-buffer-local 'hl-inward-parens)
 
 (defun hl-paren-idle-begin ()
@@ -547,7 +725,7 @@ with the the inside parentheses and moves outwards."
   (not (or (active-minibuffer-window))))
 
 (defun hl-create-parens ()
-  "Highlight the parentheses around point."
+  "Highlight enclosing parentheses."
   (when hl-paren-mode
     (hl-create-parens-internal)
     ;; Outward overlays.
