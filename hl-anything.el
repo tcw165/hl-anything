@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20141201.1800
+;; Version: 20141124.1700
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -78,7 +78,7 @@
 ;;
 ;;; Change Log:
 ;;
-;; 2014-12-01
+;; 2014-11-24
 ;; * Rename `hl-fg-colors' to `hl-highlight-foreground-colors'.
 ;;          `hl-bg-colors' to `hl-highlight-background-colors'.
 ;;   Note: Users should update your codes refer to the patch!
