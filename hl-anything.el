@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20141124.1900
+;; Version: 20141201.1800
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -25,10 +25,10 @@
 ;;; Commentary:
 ;;
 ;; Highlight things in a text file makes you search things easily. It is
-;; fundamental and very helpful to everyone, enjoy!
+;; very helpful to everyone, enjoy!
 ;;
-;; Check website for details:
-;; https://github.com/boyw165/hl-anything
+;; > Check website for details:
+;; > https://github.com/boyw165/hl-anything
 ;; 
 ;; * Highlight symbols with different colors.
 ;;   Note: The highlights are still visible even under current line highlight
@@ -36,22 +36,29 @@
 ;; * Highlight selections with different colors.
 ;; * Highlight things in a highlighted thing.
 ;; * Highlight enclosing inward and outward parentheses.
+;; * Highlight locally in current buffer or globally in all the buffers.
+;; * Smartly save highlights before killing Emacs and restore them next time.
 ;; * Select highlighted things smartly and search forwardly or backwardly.
 ;;
 ;; Usage:
 ;; ------
 ;; Add the following to your .emacs file:
 ;; (require 'hl-anything)
+;; (hl-highlight-mode 1)
 ;;
-;; Toggle highlighting things at point local in current buffer:
+;; Toggle highlight locally in current buffer:
 ;;   M-x `hl-highlight-thingatpt-local'
 ;;
-;; Toggle highlighting things at point local in all buffers:
+;; Toggle highlight globally in all buffers:
 ;;   M-x `hl-highlight-thingatpt-global'
 ;;
 ;; Remove all highlights:
 ;;   M-x `hl-unhighlight-all-local'
 ;;   M-x `hl-unhighlight-all-global'
+;;
+;; Save & Restore highlights:
+;;   M-x `hl-save-highlights'
+;;   M-x `hl-restore-highlights'
 ;;
 ;; Search highlights:
 ;;   M-x `hl-find-thing-forwardly'
@@ -65,20 +72,18 @@
 ;;
 ;; TODO:
 ;; -----
-;; * Implement `hl-highlight-thingatpt-global' to highlight things globally.
-;; * Save highlights before Emacs closed in order to restore them after Emacs
-;;   opened?
-;; * Highlight Enclosing syntax in Emacs REGEX.
+;; * Highlight enclosing syntax in REGEXP.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Change Log:
 ;;
-;; 2014-12-25
+;; 2014-12-01
 ;; * Rename `hl-fg-colors' to `hl-highlight-foreground-colors'.
 ;;          `hl-bg-colors' to `hl-highlight-background-colors'.
-;;   Note: Users should follow this change!
+;;   Note: Users should update your codes refer to the patch!
 ;; * Support `hl-highlight-thingatpt-global' and `hl-unhighlight-all-global'.
+;; * Support `hl-save-highlights' and `hl-restore-highlights'.
 ;;
 ;; 2014-10-03
 ;; * Support highlight for special faces. See `hl-highlight-special-faces'.
@@ -94,7 +99,9 @@
 ;; * Support multiple outward parentheses highlight for LISP.
 ;;
 ;; 2014-05-16
-;; * Initial release, fork from http://nschum.de/src/emacs/highlight-parentheses.
+;; * Initial release, inspired from:
+;;   https://github.com/nschum/highlight-parentheses.el
+;;   https://github.com/nschum/highlight-symbol.el
 ;;
 ;;; Code:
 
@@ -218,8 +225,16 @@ will also be created for these faces under current line."
   :group 'hl-anything)
 
 (defcustom hl-highlight-save-file "~/.emacs.d/.hl-save"
-  "A file storing information of highlights in the last session."
+  "A file storing information of highlights in the last session.
+See `hl-save-highlights' for detailed format."
   :type 'string
+  :group 'hl-anything)
+
+(defcustom hl-auto-save-restore-highlights t
+  "A file storing information of highlights in the last session.
+You can still use `hl-restore-highlights' to restore highlights;
+Or use `hl-save-highlights' to save highlights."
+  :type 'boolean
   :group 'hl-anything)
 
 (defvar hl-timer nil)
@@ -247,6 +262,18 @@ will also be created for these faces under current line."
 (defvar hl-is-highlight-special-faces nil
   "Force to create `hl-overlays' overlays.")
 (make-variable-buffer-local 'hl-is-highlight-special-faces)
+
+(defun hl-export (filename data)
+  (and (file-writable-p filename)
+       (with-temp-file filename
+         (insert (let (print-length)
+                   (prin1-to-string data))))))
+
+(defun hl-import (filename)
+  (and (file-exists-p filename)
+       (with-temp-buffer
+         (insert-file-contents-literally filename)
+         (read (buffer-string)))))
 
 (defun hl-thingatpt ()
   "Return a list, (REGEXP_STRING BEG END), on which the point is or just string
@@ -322,15 +349,19 @@ Format: (START . END)"
     (if (eq 'prepend (nth 3 keyword))
         keyword nil)))
 
-(defun hl-buffer-list (&optional ignore)
+(defun hl-buffer-list (&optional only-file)
   (delq nil (mapcar (lambda (buffer)
-                      (unless (and ignore
-                                   (string-match "\*.*\*$" (buffer-name buffer)))
+                      (if only-file
+                          (and (buffer-live-p buffer)
+                               (buffer-file-name buffer)
+                               buffer)
                         (and (buffer-live-p buffer)
                              buffer)))
                     (buffer-list))))
 
 (defmacro hl-highlight-internal (regexp database index)
+  "Use `font-lock-add-keywords' to add keywords and add overlays for specific 
+FACESPEC jsut at current line. See `hl-add-highlight-overlays'."
   (declare (indent 0) (debug t))
   `(let* ((max (max (length hl-highlight-foreground-colors)
                     (length hl-highlight-background-colors)))
@@ -358,6 +389,7 @@ Format: (START . END)"
              `(,(current-buffer))))))
 
 (defmacro hl-unhighlight-internal (regexp database index)
+  "Use `font-lock-remove-keywords' to remove keywords."
   (declare (indent 0) (debug t))
   `(let ((keyword (hl-font-lock-keyword-p ,regexp)))
      ;; Remove highlight from database.
@@ -376,12 +408,14 @@ Format: (START . END)"
              `(,(current-buffer))))))
 
 (defun hl-sync-global-highlights ()
+  "Synchronize global highlights at `find-file-hook'."
   (let ((index 0)
         highlights)
     (dolist (regexp (reverse hl-highlights))
       (hl-highlight-internal regexp highlights index))))
 
 (defun hl-highlight-pre-command ()
+  "Remove temporary highlights and cancel `hl-timer'."
   ;; Remove temporarily keywords.
   (when hl-temp-keywords
     (font-lock-remove-keywords nil hl-temp-keywords)
@@ -392,6 +426,7 @@ Format: (START . END)"
     (setq hl-timer nil)))
 
 (defun hl-highlight-post-command ()
+  "Use idle timer, `hl-timer' to update overlays for highlights."
   (when (hl-is-begin)
     (setq hl-timer (run-with-idle-timer 0 nil 'hl-add-highlight-overlays))))
 
@@ -440,7 +475,7 @@ call this function directly!"
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-global ()
-  "Toggle highlighting globally."
+  "Toggle global highlight."
   (interactive)
   (unless hl-highlight-mode
     (hl-highlight-mode 1))
@@ -451,24 +486,20 @@ call this function directly!"
              (hl-unhighlight-internal regexp
                                       hl-highlights hl-colors-index)
            (hl-highlight-internal regexp
-                                  hl-highlights hl-colors-index))))
-  (if hl-highlights
-      (add-hook 'find-file-hook 'hl-sync-global-highlights t)
-    (remove-hook 'find-file-hook 'hl-sync-global-highlights t)))
+                                  hl-highlights hl-colors-index)))))
 
 ;;;###autoload
 (defun hl-unhighlight-all-global ()
-  "Remove all the highlights in buffer."
+  "Remove all global highlights."
   (interactive)
   (dolist (regexp hl-highlights)
     (hl-unhighlight-internal regexp
                              hl-highlights hl-colors-index))
-  (setq hl-colors-index 0)
-  (remove-hook 'find-file-hook 'hl-sync-global-highlights t))
+  (setq hl-colors-index 0))
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-local ()
-  "Toggle highlighting locally in the current buffer."
+  "Toggle local highlights in the current buffer."
   (interactive)
   (unless hl-highlight-mode
     (hl-highlight-mode 1))
@@ -483,7 +514,7 @@ call this function directly!"
 
 ;;;###autoload
 (defun hl-unhighlight-all-local ()
-  "Remove all the highlights in buffer."
+  "Remove all local highlights in buffer."
   (interactive)
   (dolist (regexp hl-highlights-local)
     (hl-unhighlight-internal regexp
@@ -502,18 +533,84 @@ call this function directly!"
       (hl-highlight-mode 1))))
 
 ;;;###autoload
+(defun hl-save-highlights ()
+  "Save highlights in `hl-highlight-save-file' file.
+The format:
+  (:global HL-HIGHLIGHTS
+   :local (FILE . HL-HIGHLIGHTS-LOCAL))
+- HL-HIGHLIGHTS is `hl-highlights'.
+- FILE is filename.
+- HL-HIGHLIGHTS-LOCAL is `hl-highlights-local'.
+You can call `hl-restore-highlights' to revert highlights of last session."
+  (interactive)
+  (let (save)
+    ;; Save global highlights.
+    (setq save (plist-put save :global (reverse hl-highlights)))
+    ;; Save local highlights.
+    (let (local)
+      (dolist (buffer (hl-buffer-list t))
+        (with-current-buffer buffer
+          (and hl-highlights-local
+               (push (cons (buffer-file-name)
+                           (reverse hl-highlights-local))
+                     local))))
+      (setq save (plist-put save :local local)))
+    ;; Export.
+    (hl-export hl-highlight-save-file save)))
+
+;;;###autoload
+(defun hl-restore-highlights ()
+  "Load highligts from `hl-highlight-save-file' file. Before calling this, you 
+could call `hl-save-highlights' function."
+  (interactive)
+  (unless hl-highlight-mode
+    (hl-highlight-mode 1))
+  ;; Import.
+  (let ((save (hl-import hl-highlight-save-file)))
+    ;; Restore global highlights.
+    (hl-unhighlight-all-global)
+    (let ((highlights (plist-get save :global)))
+      (dolist (regexp highlights)
+        (hl-highlight-internal regexp
+                               hl-highlights hl-colors-index)))
+    ;; Restore local highlights.
+    (let ((local (plist-get save :local))
+          highlights)
+      (dolist (buffer (hl-buffer-list t))
+        (with-current-buffer buffer
+          (when (setq highlights (assoc (buffer-file-name) local))
+            (hl-unhighlight-all-local)
+            (dolist (regexp (cdr highlights))
+              (hl-highlight-internal regexp
+                                     hl-highlights-local
+                                     hl-colors-index-local))))))))
+
+;;;###autoload
 (define-minor-mode hl-highlight-mode
-  "Provide convenient menu items and tool-bar items for project feature."
+  "Enable highligt engine to do:
+- Show highlight over current line highlight (`hl-line-mode' or 
+  `global-hl-line-mode').
+- Synchronize global highlights.
+- Save highlights before killing Emacs and restore them next time."
   :lighter " hl-highlight"
   :global t
   (if hl-highlight-mode
       (progn
         (add-hook 'pre-command-hook 'hl-highlight-pre-command t)
         (add-hook 'post-command-hook 'hl-highlight-post-command t)
+        (add-hook 'find-file-hook 'hl-sync-global-highlights t)
+        (add-hook 'kill-emacs-hook 'hl-save-highlights t)
+        ;; Load saved highlights and add `kill-emacs-hook' when module is
+        ;; loaded 1st time.
+        (and load-file-name
+             hl-auto-save-restore-highlights
+             (hl-restore-highlights))
+        ;; 1st time to add highlights overlays.
         (hl-add-highlight-overlays))
     (remove-hook 'pre-command-hook 'hl-highlight-pre-command)
     (remove-hook 'post-command-hook 'hl-highlight-post-command)
-    (remove-hook 'find-file-hook 'hl-sync-global-highlights t)))
+    (remove-hook 'find-file-hook 'hl-sync-global-highlights t)
+    (remove-hook 'kill-emacs-hook 'hl-save-highlights t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Select & Search Highlighted Things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
