@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20141124.1700
+;; Version: 20141204.1100
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -73,6 +73,7 @@
 ;; TODO:
 ;; -----
 ;; * Highlight enclosing syntax in REGEXP.
+;; * BUG: Highlight span line doesn't work occasionally.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -373,7 +374,7 @@ Format: (START . END)"
 
 (defmacro hl-highlight-internal (regexp database index)
   "Use `font-lock-add-keywords' to add keywords and add overlays for specific 
-FACESPEC jsut at current line. See `hl-add-highlight-overlays'."
+FACESPEC just at current line. See `hl-add-highlight-overlays'."
   (declare (indent 0) (debug t))
   `(let* ((max (max (length hl-highlight-foreground-colors)
                     (length hl-highlight-background-colors)))
@@ -397,7 +398,9 @@ FACESPEC jsut at current line. See `hl-add-highlight-overlays'."
                                        'append)
                (font-lock-fontify-buffer)))
            (if (eq ,database hl-highlights)
-               (hl-buffer-list t)
+               ;; global highlights.
+               (hl-buffer-list)
+             ;; local highlights
              `(,(current-buffer))))))
 
 (defmacro hl-unhighlight-internal (regexp database index)
@@ -416,7 +419,9 @@ FACESPEC jsut at current line. See `hl-add-highlight-overlays'."
                  (font-lock-remove-keywords nil (list keyword)))
                (font-lock-fontify-buffer)))
            (if (eq ,database hl-highlights)
-               (hl-buffer-list t)
+               ;; global highlights.
+               (hl-buffer-list)
+             ;; local highlights
              `(,(current-buffer))))))
 
 (defun hl-sync-global-highlights ()
