@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20141204.1100
+;; Version: 20150105.1100
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -73,6 +73,7 @@
 ;; TODO:
 ;; -----
 ;; * Highlight enclosing syntax in REGEXP.
+;; * BUG: Occasional conflict with selection region.
 ;; * BUG: Highlight span line doesn't work occasionally.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -457,6 +458,7 @@ Note: It is called by highlight engine in `post-command-hook'. You shound't
 call this function directly!"
   (when (or (and hl-highlight-mode
                  (require 'hl-line) (or hl-line-mode global-hl-line-mode)
+                 ;; (not (region-active-p))
                  (or hl-highlights
                      hl-highlights-local
                      hl-overlays
