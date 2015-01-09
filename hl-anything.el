@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20150105.1100
+;; Version: 20150109.2300
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -24,57 +24,43 @@
 ;;
 ;;; Commentary:
 ;;
-;; Highlight things in a text file makes you search things easily. It is
-;; very helpful to everyone, enjoy!
+;; Highlight things at point, selections, enclosing parentheses with different
+;; colors. Fix grumbling issue of highlights being overridden by `hl-line-mode'
+;; and `global-hl-line-mode'.
 ;;
-;; > Check website for details:
-;; > https://github.com/boyw165/hl-anything
-;; 
-;; * Highlight symbols with different colors.
-;;   Note: The highlights are still visible even under current line highlight
-;;   (`hl-line-mode' or `global-hl-line-mode' is enabled).
-;; * Highlight selections with different colors.
-;; * Highlight things in a highlighted thing.
-;; * Highlight enclosing inward and outward parentheses.
-;; * Highlight locally in current buffer or globally in all the buffers.
-;; * Smartly save highlights before killing Emacs and restore them next time.
+;; Of course, there're more advanced features:
+;; * Save highlights and restore them next time Emacs opened.
 ;; * Select highlighted things smartly and search forwardly or backwardly.
+;; * More... Check official website for details:
+;; https://github.com/boyw165/hl-anything
 ;;
 ;; Usage:
 ;; ------
-;; Add the following to your .emacs file:
-;; (require 'hl-anything)
-;; (hl-highlight-mode 1)
+;; M-x `hl-highlight-thingatpt-local'
+;; Toggle highlight locally in current buffer.
 ;;
-;; Toggle highlight locally in current buffer:
-;;   M-x `hl-highlight-thingatpt-local'
+;; M-x `hl-highlight-thingatpt-global'
+;; Toggle highlight globally in all buffers.
 ;;
-;; Toggle highlight globally in all buffers:
-;;   M-x `hl-highlight-thingatpt-global'
+;; M-x `hl-unhighlight-all-local'
+;; M-x `hl-unhighlight-all-global'
+;; Remove all highlights.
 ;;
-;; Remove all highlights:
-;;   M-x `hl-unhighlight-all-local'
-;;   M-x `hl-unhighlight-all-global'
+;; M-x `hl-save-highlights'
+;; M-x `hl-restore-highlights'
+;; Save & Restore highlights.
 ;;
-;; Save & Restore highlights:
-;;   M-x `hl-save-highlights'
-;;   M-x `hl-restore-highlights'
+;; M-x `hl-find-thing-forwardly'
+;; M-x `hl-find-thing-backwardly'
+;; Search highlights.
 ;;
-;; Search highlights:
-;;   M-x `hl-find-thing-forwardly'
-;;   M-x `hl-find-thing-backwardly'
-;;
-;; Enable enclosing parenethese highlighting:
-;;   M-x `hl-paren-mode'
-;;
-;; Highlight things temporarily which means any action will delete the highlights.
-;;  (hl-highlight-keywords-temporarily '(("hello" hl-symbol-face)))
+;; M-x `hl-paren-mode'
+;; Enable enclosing parenethese highlighting.
 ;;
 ;; TODO:
 ;; -----
 ;; * Highlight enclosing syntax in REGEXP.
-;; * BUG: Occasional conflict with selection region.
-;; * BUG: Highlight span line doesn't work occasionally.
+;; * Remove `hl-face', they seems redundant.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -230,10 +216,7 @@ Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
   :group 'hl-anything)
 
-(defcustom hl-highlight-special-faces '(hl-symbol-face
-                                        hl-title-1-face
-                                        hl-title-2-face
-                                        hl-title-3-face)
+(defcustom hl-highlight-special-faces nil
   "For the faces that will be treat as highlights, which means overlays 
 will also be created for these faces at current line."
   :type '(repeat face)
@@ -254,6 +237,9 @@ Or call `hl-save-highlights' to save highlights."
 
 (defvar hl-timer nil)
 
+(defvar hl-region nil
+  "A struct, (START . END), is present when `region-active-p' it t.")
+
 (defvar hl-colors-index 0)
 
 (defvar hl-colors-index-local 0)
@@ -269,14 +255,6 @@ Or call `hl-save-highlights' to save highlights."
 (defvar hl-overlays nil
   "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
 (make-variable-buffer-local 'hl-overlays)
-
-(defvar hl-temp-keywords nil
-  "A local keywords list. See `font-lock-keywords' for its format.")
-(make-variable-buffer-local 'hl-temp-keywords)
-
-(defvar hl-is-highlight-special-faces nil
-  "Force to create `hl-overlays' overlays.")
-(make-variable-buffer-local 'hl-is-highlight-special-faces)
 
 (defun hl-export (filename data)
   (and (file-writable-p filename)
@@ -303,6 +281,31 @@ Or call `hl-save-highlights' to save highlights."
         (setq text (replace-regexp-in-string "\\s-+" "\\\\s-+" text))
         (list text (car bound) (cdr bound))))))
 
+(defun hl-get-text-highlight-face ()
+  (unless (and hl-region
+               (>= (point) (car hl-region))
+               (< (point) (cdr hl-region)))
+    (let ((face (get-text-property (point) 'face)))
+      (cond
+       ;; NULL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       ((null face)
+        nil)
+       ;; Normal Face ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       ((facep face)
+        (car (memq face hl-highlight-special-faces)))
+       ;; Face List ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       ((facep (car face))
+        (setq face (car face))
+        (car (memq face hl-highlight-special-faces)))
+       ;; Foreground-color & Background-color ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       (t
+        (let (elm ret)
+          (when (setq elm (assoc 'foreground-color face))
+            (setq ret (append ret `(,elm))))
+          (when (setq elm (assoc 'background-color face))
+            (setq ret (append ret `(,elm))))
+          ret))))))
+
 (defun hl-bounds-of-thingatpt ()
   (or (hl-bounds-of-highlight)
       (bounds-of-thing-at-point 'symbol)))
@@ -310,52 +313,28 @@ Or call `hl-save-highlights' to save highlights."
 (defun hl-bounds-of-highlight ()
   "Return the start and end locations for the highlighted things at point.
 Format: (START . END)"
-  (let ((face (hl-get-text-valid-face)))
+  (let ((face (hl-get-text-highlight-face)))
     (when face
       (let (beg end)
         ;; Find beginning locations.
         (save-excursion
-          (hl-bounds-of-valid-face face -1)
+          (hl-seek-matched-face face -1)
           (setq beg (point)))
         ;; Find end locations.
         (save-excursion
-          (hl-bounds-of-valid-face face 1)
+          (hl-seek-matched-face face 1)
           (setq end (1+ (point))))
         (cons beg end)))))
 
-(defun hl-get-text-valid-face ()
-  (let ((face (get-text-property (point) 'face)))
-    (cond
-     ;; NULL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     ((null face)
-      nil)
-     ;; Normal Face ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     ((facep face)
-      (and (memq face hl-highlight-special-faces)
-           face))
-     ;; Face List ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     ((facep (car face))
-      (setq face (car face))
-      (and (memq face hl-highlight-special-faces)
-           face))
-     ;; Foreground-color & Background-color ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-     (t
-      (let (elm ret)
-        (when (setq elm (assoc 'foreground-color face))
-          (setq ret (append ret `(,elm))))
-        (when (setq elm (assoc 'background-color face))
-          (setq ret (append ret `(,elm))))
-        ret)))))
-
-(defun hl-bounds-of-valid-face (org-face step)
+(defun hl-seek-matched-face (matched-face step)
   (when (/= step 0)
-    (let ((face (hl-get-text-valid-face)))
+    (let ((face (hl-get-text-highlight-face)))
       (ignore-errors
-        (if (equal org-face face)
+        (if (equal matched-face face)
             (progn
               (forward-char step)
               ;; Recursive call.
-              (hl-bounds-of-valid-face org-face step))
+              (hl-seek-matched-face matched-face step))
           (backward-char step))))))
 
 (defun hl-font-lock-keyword-p (regexp)
@@ -400,10 +379,9 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                                        `((,regexp 0 ',facespec prepend))
                                        'append)
                (font-lock-fontify-buffer)))
+           ;; global or local?
            (if (eq ,database hl-highlights)
-               ;; global highlights.
                (hl-buffer-list)
-             ;; local highlights
              `(,(current-buffer))))))
 
 (defmacro hl-unhighlight-internal (regexp database index)
@@ -421,10 +399,9 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                (while (setq keyword (hl-font-lock-keyword-p ,regexp))
                  (font-lock-remove-keywords nil (list keyword)))
                (font-lock-fontify-buffer)))
+           ;; global or local?
            (if (eq ,database hl-highlights)
-               ;; global highlights.
                (hl-buffer-list)
-             ;; local highlights
              `(,(current-buffer))))))
 
 (defun hl-sync-global-highlights ()
@@ -437,23 +414,19 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
 (defun hl-highlight-pre-command ()
   "Remove temporary highlights and cancel `hl-timer'."
   (unless (and (featurep 'edebug) edebug-active)
-    ;; Remove temporarily keywords.
-    (when hl-temp-keywords
-      (font-lock-remove-keywords nil hl-temp-keywords)
-      (font-lock-fontify-buffer)
-      (setq hl-temp-keywords nil))
     ;; Cancel idle timer.
     (when hl-timer
       (cancel-timer hl-timer)
       (setq hl-timer nil))))
 
 (defun hl-highlight-post-command ()
-  "Use idle timer, `hl-timer' to update overlays for highlights."
+  "Use idle timer, `hl-timer' to update overlays for highlights if it's not in 
+the `edebug-mode'."
   (unless (and (featurep 'edebug) edebug-active)
-    (when (hl-is-begin)
+    (when (hl-begin?)
       (setq hl-timer (run-with-idle-timer 0 nil 'hl-add-highlight-overlays)))))
 
-(defun hl-is-begin ()
+(defun hl-begin? ()
   (not (or (active-minibuffer-window))))
 
 (defun hl-add-highlight-overlays ()
@@ -461,27 +434,27 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
 `global-hl-line-mode' is enabled.
 Note: It is called by highlight engine in `post-command-hook'. You shound't 
 call this function directly!"
-  (when (or (and hl-highlight-mode
-                 (or hl-line-mode global-hl-line-mode)
-                 ;; (not (region-active-p))
+  (when (or (and (or hl-line-mode global-hl-line-mode)
                  (or hl-highlights
                      hl-highlights-local
-                     hl-overlays
-                     hl-temp-keywords))
-            hl-is-highlight-special-faces)
+                     hl-highlight-special-faces
+                     hl-overlays)))
     ;; Remove overlays.
     (mapc 'delete-overlay hl-overlays)
     (setq hl-overlays nil)
     ;; Create overlays.
-    (let ((end (line-end-position))
+    (let ((hl-region (and (region-active-p)
+                          (cons (region-beginning) (region-end))))
+          (end (line-end-position))
           bound)
       (save-excursion
         (beginning-of-line)
         (while (and (<= (point) end)
                     (not (eobp)))
           (if (setq bound (hl-bounds-of-highlight))
+              ;; TODO: Add overlay's priority.
               (let ((overlay (make-overlay (point) (cdr bound)))
-                    (face (hl-get-text-valid-face)))
+                    (face (hl-get-text-highlight-face)))
                 (if (facep face)
                     (let ((fg (face-attribute face :foreground))
                           (bg (face-attribute face :background))
@@ -547,25 +520,12 @@ call this function directly!"
   (setq hl-colors-index-local 0))
 
 ;;;###autoload
-(defun hl-highlight-keywords-temporarily (keywords)
-  "Highlight KEYWORDS locally and temporarily in the current buffer. Any action
- will remove the temporary highlights. See `font-lock-keywords'."
-  (when keywords
-    (setq hl-temp-keywords keywords)
-    (font-lock-add-keywords nil keywords 'append)
-    (font-lock-fontify-buffer)
-    (unless hl-highlight-mode
-      (hl-highlight-mode 1))))
-
-;;;###autoload
 (defun hl-save-highlights ()
   "Save highlights in `hl-highlight-save-file' file.
-The format:
-  (:global HL-HIGHLIGHTS
-   :local (FILE . HL-HIGHLIGHTS-LOCAL))
-- HL-HIGHLIGHTS is `hl-highlights'.
-- FILE is filename.
-- HL-HIGHLIGHTS-LOCAL is `hl-highlights-local'.
+
+  (:global HL-HIGHLIGHTS                 ;; `hl-highlights'
+   :local (FILE . HL-HIGHLIGHTS-LOCAL))  ;; `hl-highlights-local'
+
 You can call `hl-restore-highlights' to revert highlights of last session."
   (interactive)
   (let (save)
@@ -632,6 +592,11 @@ could call `hl-save-highlights' function."
              (hl-restore-highlights))
         ;; 1st time to add highlights overlays.
         (hl-add-highlight-overlays))
+    ;; Remove overlays.
+    (dolist (buffer (buffer-list))
+      (mapc 'delete-overlay hl-overlays)
+      (setq hl-overlays nil))
+    ;; Cancel timer and hook.
     (when hl-timer
       (cancel-timer hl-timer)
       (setq hl-timer nil))
