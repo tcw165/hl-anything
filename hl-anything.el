@@ -109,64 +109,6 @@
   :tag "hl-paren"
   :group 'hl-anything)
 
-(defgroup hl-face nil
-  "Additional faces for `hl-anything'."
-  :tag "hl-face"
-  :group 'hl-anything)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Additional Faces ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defface hl-file-face
-  '((t (:foreground "blue" :underline t :weight bold)))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-number-face
-  '((t (:foreground "maroon1")))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-generic-variable-face
-  '((t (:foreground "black")))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-local-variable-face
-  '((t (:foreground "black")))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-global-variable-face
-  '((t (:foreground "black")))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-function-parameter-face
-  '((t (:underline t)))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-symbol-face
-  '((t (:background "gold" :foreground "black" :weight bold :height 1.5)))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-title-1-face
-  '((t (:background "LightCyan3" :foreground "gray40" :weight bold :height 1.5)))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-title-2-face
-  '((t (:background "LightCyan2" :foreground "gray40" :weight bold :height 1.3)))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
-(defface hl-title-3-face
-  '((t (:background "LightCyan1" :foreground "gray40" :weight bold :height 1.1)))
-  "Default face for highlighting keyword in definition window."
-  :group 'hl-face)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Highlight things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
