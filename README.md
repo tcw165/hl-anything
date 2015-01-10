@@ -39,6 +39,8 @@ Put your cursor on the highlight and use following commands to search highlights
 
 * Command **`hl-find-thing-forwardly`** and **`hl-find-thing-backwardly`** to go through highlights.
 
+![hl-anything screenshot](demo/highlight-search.gif "search")
+
 Save & Restore Highlights
 -------------------------
 Once `hl-highlight-mode` is on, it will save highlights automatically before Emacs exits.
@@ -74,3 +76,4 @@ TODO
 Contribution
 ------------
 Forks and pull requests are welcome!
+
