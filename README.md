@@ -2,67 +2,73 @@
 [![MELPA Stable](http://stable.melpa.org/packages/hl-anything-badge.svg)](http://stable.melpa.org/#/hl-anything)
 [![TRAVIS-CI](https://travis-ci.org/boyw165/hl-anything.svg?branch=master)](https://travis-ci.org/boyw165/hl-anything)
 
-hl-anything.el - Highlight Anything in Emacs
-============================================
+Highlight Symbols, Selections, Enclosing Parens and More
+===================================================================
 
-Highlight things in a text file makes you search things easily. It is fundamental and very helpful to everyone, enjoy!
+Highlight things at point, selections, enclosing parentheses with different colors. Fix grumbling issue of highlights being overridden by `hl-line-mode` and `global-hl-line-mode`.
 
-Highlight symbols with different colors.
-----------------------------------------
-> Note: The highlights are still visible even under current line highlight (`hl-line-mode` or `global-hl-line-mode`).
-![hl-anything screenshot](demo/symbol-hl.gif "hl-anything demo")
+Demo
+----
+![hl-anything screenshot](demo/all.gif "hl-anything demo")
 
-Highlight selections with different colors.
--------------------------------------------
-> Note: The selections can span across spaces or line break.
-![hl-anything screenshot](demo/selection-hl.gif "hl-anything demo")
+Basic Usage - First Step, Enable `hl-highlight-mode`
+----------------------------------------------------
+There're **GLOBAL** and **LOCAL** kinds of highlights.
+The global highlights appear in every buffer; The local highlights only exist in the current buffer.
 
-Highlight things in a highlighted thing.
-----------------------------------------
-![hl-anything screenshot](demo/things-in-things.gif "hl-anything demo")
+Global Highlights:
 
-Highlight enclosing inward and outward parentheses.
----------------------------------------------------
-![hl-anything screenshot](demo/enclosing-paren.png "hl-anything demo")
+* Command **`hl-highlight-thingatpt-global`** to toggle global highlight at point or selection.
+* Command **`hl-unhighlight-all-global`** to remove all global highlights.
 
-Select highlighted things smartly and search forwardly or backwardly.
----------------------------------------------------------------------
-![hl-anything screenshot](demo/search.gif "hl-anything demo")
+Local Highlights:
 
-Specify faces to be visible under current line highlight.
----------------------------------------------------------
-![hl-anything screenshot](demo/face-hl.png "hl-anything demo")
+* Command **`hl-highlight-thingatpt-local`** to toggle local highlight at point or selection.
+* Command **`hl-unhighlight-all-local`** to remove all local highlights.
+
+You can change foreground and background colors of highlights:
+
+* Foreground colors are stored in `hl-highlight-foreground-colors` variable.
+* Background colors are stored in `hl-highlight-background-colors` variable.
+
+![hl-anything screenshot](demo/highlight-colors.png "colors")
+
+Search Highlights
+-----------------
+Put your cursor on the highlight and use following commands to search highlights.
+
+* Command **`hl-find-thing-forwardly`** and **`hl-find-thing-backwardly`** to go through highlights.
 
 Save & Restore Highlights
 -------------------------
-* `M-x hl-save-highlights`
-* `M-x hl-restore-highlights`
+Once `hl-highlight-mode` is on, it will save highlights automatically before Emacs exits.
+It will also try to restore highlights when Emacs opens.
 
-Usage
------
-Add the following code to your `.emacs` file:
-``` lisp
-(require 'hl-anything)
-(hl-highlight-mode 1)
+* Command **`hl-save-highlights`** to save highlights; **`hl-restore-highlights`** to restore highlights.
+* Saved file-path is stored in `hl-highlight-save-file` variable.
+
+Parenthese Highlight, `hl-paren-mode`
+-------------------------------------
+![hl-anything screenshot](demo/highlight-paren.png "hl-paren-mode")
+
+* Colors of outward parentheses are stored in `hl-outward-paren-fg-colors` and `hl-outward-paren-bg-colors` variables.
+* Colors of inward parentheses are stored in `hl-inward-paren-fg-color` variables.
+
+Advanced
+--------
+There's a special faces storage, `hl-highlight-special-faces`. The faces here are always on the top of the current line highlight (`hl-line-mode` and `global-hl-line-mode`).
+
+![hl-anything screenshot](demo/highlight-special-faces.png "hl-paren-mode")
+
+Example:
+
+```lisp
+(add-to-list 'hl-highlight-special-faces 'YOUR-FACE t)
 ```
-
-Useful Functions:
-* Toggle highlight globally in all buffers: `M-x hl-highlight-thingatpt-global`
-* Remove all highlights in all buffers:  or `M-x hl-unhighlight-all-global`
-* Toggle highlight locally in current buffer (every buffers have its own copy): `M-x hl-highlight-thingatpt-local`
-* Remove all highlights in current buffer: `M-x hl-unhighlight-all-local`
-* Search highlights: `M-x hl-find-thing-forwardly` or `M-x hl-find-thing-backwardly`
-* Save highlights both of local and global highlights: `M-x hl-save-highlights`
-* Restore highlights both of local and global highlights: `M-x hl-restore-highlights`
-* Enable parenethese highlight: `M-x hl-paren-mode`
-
-Customization:
-* Change highlight colors: `M-x customize-group` Enter `hl-anything`.
-* `hl-highlight-foreground-colors` and `hl-highlight-background-colors` are foreground and background colors setting.
-* `hl-highlight-save-file` is a file storing highlights; `hl-auto-save-restore-highlights` is to automatically save and restore highlights.
 
 TODO
 ----
+* Add menu items and tool-bar buttons.
 * Highlight Enclosing syntax in Emacs REGEX.
 
 Contribution

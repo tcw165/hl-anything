@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014
 ;;
 ;; Author: boyw165
-;; Version: 20150109.2300
+;; Version: 20150110.2300
 ;; Package-Requires: ((emacs "24.3"))
 ;; Compatibility: GNU Emacs 24.3+
 ;;
@@ -31,6 +31,8 @@
 ;; Of course, there're more advanced features:
 ;; * Save highlights and restore them next time Emacs opened.
 ;; * Select highlighted things smartly and search forwardly or backwardly.
+;; * Assign highlighting specific faces which makes them always on the top of
+;;   current line highlight.
 ;; * More... Check official website for details:
 ;; https://github.com/boyw165/hl-anything
 ;;
@@ -60,16 +62,16 @@
 ;; TODO:
 ;; -----
 ;; * Highlight enclosing syntax in REGEXP.
-;; * Remove `hl-face', they seems redundant.
+;; * Add menu items and tool-bar buttons.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Change Log:
 ;;
+;; 2015-01-10
+;; * Use advised function to improve performance.
+;;
 ;; 2014-11-24
-;; * Rename `hl-fg-colors' to `hl-highlight-foreground-colors'.
-;;          `hl-bg-colors' to `hl-highlight-background-colors'.
-;;   Note: Users should update your codes refer to the patch!
 ;; * Support `hl-highlight-thingatpt-global' and `hl-unhighlight-all-global'.
 ;; * Support `hl-save-highlights' and `hl-restore-highlights'.
 ;;
@@ -358,15 +360,6 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
     (dolist (regexp (reverse hl-highlights))
       (hl-highlight-internal regexp highlights index))))
 
-(defun hl-remove-highlight-overlays (&optional all?)
-  "Remove overlays only at current line."
-  (dolist (buffer (if all?
-                      (hl-buffer-list)
-                    (list (current-buffer))))
-    (with-current-buffer buffer
-      (mapc 'delete-overlay hl-overlays)
-      (setq hl-overlays nil))))
-
 (defun hl-add-highlight-overlays ()
   "Add overlays only at current line."
   (when (or (and (or hl-line-mode global-hl-line-mode)
@@ -403,21 +396,36 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                 (goto-char (cdr bound)))
             (forward-char)))))))
 
-(defadvice hl-line-unhighlight (after hl-line-remove-overlays)
-  "Remove overlays after unhighlighting current line."
-  (hl-remove-highlight-overlays))
-
-(defadvice global-hl-line-unhighlight (after global-hl-line-remove-overlays)
-  "Remove overlays after unhighlighting current line."
-  (hl-remove-highlight-overlays))
+(defun hl-remove-highlight-overlays (&optional all?)
+  "Remove overlays only at current line."
+  (dolist (buffer (if all?
+                      (hl-buffer-list)
+                    (list (current-buffer))))
+    (with-current-buffer buffer
+      (mapc 'delete-overlay hl-overlays)
+      (setq hl-overlays nil))))
 
 (defadvice hl-line-highlight (after hl-line-add-overlays)
   "Add overlays after highlighting current line."
   (hl-add-highlight-overlays))
 
+(defadvice hl-line-unhighlight (after hl-line-remove-overlays)
+  "Remove overlays after unhighlighting current line."
+  (hl-remove-highlight-overlays))
+
 (defadvice global-hl-line-highlight (after global-hl-line-add-overlays)
   "Add overlays after highlighting current line."
   (hl-add-highlight-overlays))
+
+(defadvice global-hl-line-unhighlight (after global-hl-line-remove-overlays)
+  "Remove overlays after unhighlighting current line."
+  (hl-remove-highlight-overlays))
+
+(defun hl-add-menu-items ()
+  )
+
+(defun hl-remove-menu-items ()
+  )
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-global ()
@@ -529,22 +537,34 @@ could call `hl-save-highlights' function."
   :global t
   (if hl-highlight-mode
       (progn
-        (ad-activate 'hl-line-unhighlight)
-        (ad-activate 'global-hl-line-unhighlight)
-        (ad-activate 'hl-line-highlight)
-        (ad-activate 'global-hl-line-highlight)
+        ;; Highlight core.
+        (ad-enable-advice 'hl-line-highlight 'after 'hl-line-add-overlays)
+        (ad-enable-advice 'hl-line-unhighlight 'after 'hl-line-remove-overlays)
+        (ad-enable-advice 'global-hl-line-highlight 'after 'global-hl-line-add-overlays)
+        (ad-enable-advice 'global-hl-line-unhighlight 'after 'global-hl-line-remove-overlays)
         (add-hook 'find-file-hook 'hl-sync-global-highlights t)
         (add-hook 'kill-emacs-hook 'hl-save-highlights t)
+        ;; Add menu items.
+        (hl-add-menu-items)
         ;; 1st time to add highlights overlays.
-        (hl-add-highlight-overlays))
+        (dolist (buffer (hl-buffer-list))
+          (with-current-buffer buffer
+            (hl-add-highlight-overlays))))
     ;; Remove overlays.
     (hl-remove-highlight-overlays t)
-    (ad-deactivate 'hl-line-unhighlight)
-    (ad-deactivate 'global-hl-line-unhighlight)
-    (ad-deactivate 'hl-line-highlight)
-    (ad-deactivate 'global-hl-line-highlight)
+    ;; Add menu items.
+    (hl-remove-menu-items)
+    ;; Highlight core.
+    (ad-disable-advice 'hl-line-highlight 'after 'hl-line-add-overlays)
+    (ad-disable-advice 'hl-line-unhighlight 'after 'hl-line-remove-overlays)
+    (ad-disable-advice 'global-hl-line-highlight 'after 'global-hl-line-add-overlays)
+    (ad-disable-advice 'global-hl-line-unhighlight 'after 'global-hl-line-remove-overlays)
     (remove-hook 'find-file-hook 'hl-sync-global-highlights)
-    (remove-hook 'kill-emacs-hook 'hl-save-highlights)))
+    (remove-hook 'kill-emacs-hook 'hl-save-highlights))
+  (mapc 'ad-activate '(hl-line-highlight
+                       global-hl-line-highlight
+                       hl-line-unhighlight
+                       global-hl-line-unhighlight)))
 
 ;; Restore highlight when Emacs initializing.
 (and load-file-name
