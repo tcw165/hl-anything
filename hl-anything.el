@@ -94,6 +94,7 @@
 ;;; Code:
 
 ;; GNU Library.
+(require 'advice)
 (require 'hl-line)
 (require 'thingatpt)
 
@@ -177,10 +178,9 @@ Or call `hl-save-highlights' to save highlights."
   :type 'boolean
   :group 'hl-anything)
 
-(defvar hl-timer nil)
-
 (defvar hl-region nil
-  "A struct, (START . END), is present when `region-active-p' it t.")
+  "A struct, (START . END), is present when `region-active-p' it t. It is used 
+in `hl-get-text-highlight-face' to ignore region.")
 
 (defvar hl-colors-index 0)
 
@@ -248,9 +248,16 @@ Or call `hl-save-highlights' to save highlights."
             (setq ret (append ret `(,elm))))
           ret))))))
 
-(defun hl-bounds-of-thingatpt ()
-  (or (hl-bounds-of-highlight)
-      (bounds-of-thing-at-point 'symbol)))
+(defun hl-seek-matched-face (matched-face step)
+  (when (/= step 0)
+    (let ((face (hl-get-text-highlight-face)))
+      (ignore-errors
+        (if (equal matched-face face)
+            (progn
+              (forward-char step)
+              ;; Recursive call.
+              (hl-seek-matched-face matched-face step))
+          (backward-char step))))))
 
 (defun hl-bounds-of-highlight ()
   "Return the start and end locations for the highlighted things at point.
@@ -268,16 +275,9 @@ Format: (START . END)"
           (setq end (1+ (point))))
         (cons beg end)))))
 
-(defun hl-seek-matched-face (matched-face step)
-  (when (/= step 0)
-    (let ((face (hl-get-text-highlight-face)))
-      (ignore-errors
-        (if (equal matched-face face)
-            (progn
-              (forward-char step)
-              ;; Recursive call.
-              (hl-seek-matched-face matched-face step))
-          (backward-char step))))))
+(defun hl-bounds-of-thingatpt ()
+  (or (hl-bounds-of-highlight)
+      (bounds-of-thing-at-point 'symbol)))
 
 (defun hl-font-lock-keyword-p (regexp)
   (let ((keyword (assoc regexp (if (eq t (car font-lock-keywords))
@@ -295,6 +295,11 @@ Format: (START . END)"
                         (and (buffer-live-p buffer)
                              buffer)))
                     (buffer-list))))
+
+(defun hl-highlight-fontify ()
+  (save-excursion
+    (font-lock-fontify-region (point-min)
+                              (point-max))))
 
 (defmacro hl-highlight-internal (regexp database index)
   "Use `font-lock-add-keywords' to add keywords and add overlays for specific 
@@ -320,7 +325,7 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                (font-lock-add-keywords nil
                                        `((,regexp 0 ',facespec prepend))
                                        'append)
-               (font-lock-fontify-buffer)))
+               (hl-highlight-fontify)))
            ;; global or local?
            (if (eq ,database hl-highlights)
                (hl-buffer-list)
@@ -340,7 +345,7 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
              (with-current-buffer buffer
                (while (setq keyword (hl-font-lock-keyword-p ,regexp))
                  (font-lock-remove-keywords nil (list keyword)))
-               (font-lock-fontify-buffer)))
+               (hl-highlight-fontify)))
            ;; global or local?
            (if (eq ,database hl-highlights)
                (hl-buffer-list)
@@ -353,37 +358,22 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
     (dolist (regexp (reverse hl-highlights))
       (hl-highlight-internal regexp highlights index))))
 
-(defun hl-highlight-pre-command ()
-  "Remove temporary highlights and cancel `hl-timer'."
-  (unless (and (featurep 'edebug) edebug-active)
-    ;; Cancel idle timer.
-    (when hl-timer
-      (cancel-timer hl-timer)
-      (setq hl-timer nil))))
-
-(defun hl-highlight-post-command ()
-  "Use idle timer, `hl-timer' to update overlays for highlights if it's not in 
-the `edebug-mode'."
-  (unless (and (featurep 'edebug) edebug-active)
-    (when (hl-begin?)
-      (setq hl-timer (run-with-idle-timer 0 nil 'hl-add-highlight-overlays)))))
-
-(defun hl-begin? ()
-  (not (or (active-minibuffer-window))))
+(defun hl-remove-highlight-overlays (&optional all?)
+  "Remove overlays only at current line."
+  (dolist (buffer (if all?
+                      (hl-buffer-list)
+                    (list (current-buffer))))
+    (with-current-buffer buffer
+      (mapc 'delete-overlay hl-overlays)
+      (setq hl-overlays nil))))
 
 (defun hl-add-highlight-overlays ()
-  "Add overlays only for things at current line when `hl-line-mode' or 
-`global-hl-line-mode' is enabled.
-Note: It is called by highlight engine in `post-command-hook'. You shound't 
-call this function directly!"
+  "Add overlays only at current line."
   (when (or (and (or hl-line-mode global-hl-line-mode)
                  (or hl-highlights
                      hl-highlights-local
                      hl-highlight-special-faces
                      hl-overlays)))
-    ;; Remove overlays.
-    (mapc 'delete-overlay hl-overlays)
-    (setq hl-overlays nil)
     ;; Create overlays.
     (let ((hl-region (and (region-active-p)
                           (cons (region-beginning) (region-end))))
@@ -413,6 +403,22 @@ call this function directly!"
                 (goto-char (cdr bound)))
             (forward-char)))))))
 
+(defadvice hl-line-unhighlight (after hl-line-remove-overlays)
+  "Remove overlays after unhighlighting current line."
+  (hl-remove-highlight-overlays))
+
+(defadvice global-hl-line-unhighlight (after global-hl-line-remove-overlays)
+  "Remove overlays after unhighlighting current line."
+  (hl-remove-highlight-overlays))
+
+(defadvice hl-line-highlight (after hl-line-add-overlays)
+  "Add overlays after highlighting current line."
+  (hl-add-highlight-overlays))
+
+(defadvice global-hl-line-highlight (after global-hl-line-add-overlays)
+  "Add overlays after highlighting current line."
+  (hl-add-highlight-overlays))
+
 ;;;###autoload
 (defun hl-highlight-thingatpt-global ()
   "Toggle global highlight."
@@ -421,12 +427,12 @@ call this function directly!"
     (hl-highlight-mode 1))
   (let* ((thing (hl-thingatpt))
          (regexp (car thing)))
-    (and thing
-         (if (member regexp hl-highlights)
-             (hl-unhighlight-internal regexp
-                                      hl-highlights hl-colors-index)
-           (hl-highlight-internal regexp
-                                  hl-highlights hl-colors-index)))))
+    (when thing
+      (if (member regexp hl-highlights)
+          (hl-unhighlight-internal regexp
+                                   hl-highlights hl-colors-index)
+        (hl-highlight-internal regexp
+                               hl-highlights hl-colors-index)))))
 
 ;;;###autoload
 (defun hl-unhighlight-all-global ()
@@ -503,7 +509,7 @@ could call `hl-save-highlights' function."
     ;; Restore local highlights.
     (let ((local (plist-get save :local))
           highlights)
-      (dolist (buffer (hl-buffer-list t))
+      (dolist (buffer (hl-buffer-list))
         (with-current-buffer buffer
           (when (setq highlights (assoc (buffer-file-name) local))
             (hl-unhighlight-all-local)
@@ -523,29 +529,27 @@ could call `hl-save-highlights' function."
   :global t
   (if hl-highlight-mode
       (progn
-        (add-hook 'pre-command-hook 'hl-highlight-pre-command t)
-        (add-hook 'post-command-hook 'hl-highlight-post-command t)
+        (ad-activate 'hl-line-unhighlight)
+        (ad-activate 'global-hl-line-unhighlight)
+        (ad-activate 'hl-line-highlight)
+        (ad-activate 'global-hl-line-highlight)
         (add-hook 'find-file-hook 'hl-sync-global-highlights t)
         (add-hook 'kill-emacs-hook 'hl-save-highlights t)
-        ;; Load saved highlights and add `kill-emacs-hook' when module is
-        ;; loaded 1st time.
-        (and load-file-name
-             hl-auto-save-restore-highlights
-             (hl-restore-highlights))
         ;; 1st time to add highlights overlays.
         (hl-add-highlight-overlays))
     ;; Remove overlays.
-    (dolist (buffer (buffer-list))
-      (mapc 'delete-overlay hl-overlays)
-      (setq hl-overlays nil))
-    ;; Cancel timer and hook.
-    (when hl-timer
-      (cancel-timer hl-timer)
-      (setq hl-timer nil))
-    (remove-hook 'pre-command-hook 'hl-highlight-pre-command)
-    (remove-hook 'post-command-hook 'hl-highlight-post-command)
+    (hl-remove-highlight-overlays t)
+    (ad-deactivate 'hl-line-unhighlight)
+    (ad-deactivate 'global-hl-line-unhighlight)
+    (ad-deactivate 'hl-line-highlight)
+    (ad-deactivate 'global-hl-line-highlight)
     (remove-hook 'find-file-hook 'hl-sync-global-highlights)
     (remove-hook 'kill-emacs-hook 'hl-save-highlights)))
+
+;; Restore highlight when Emacs initializing.
+(and load-file-name
+     hl-auto-save-restore-highlights
+     (hl-restore-highlights))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Select & Search Highlighted Things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
