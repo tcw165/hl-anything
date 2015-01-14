@@ -326,16 +326,21 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
      (push ,regexp ,database)
      ;; Update index of colors.
      (setq ,index new-index)
-     ;; Fontify buffer(s).
+     ;; Add keywords for buffer(s).
      (mapc (lambda (buffer)
              (with-current-buffer buffer
                (font-lock-add-keywords nil
                                        `((,regexp 0 ',facespec prepend))
-                                       'append)
-               (hl-highlight-fontify)))
-           ;; global or local?
+                                       'append)))
            (if (eq ,database hl-highlights)
                (hl-buffer-list)
+             (list (current-buffer))))
+     ;; Fontify buffer(s).
+     (mapc (lambda (buffer)
+             (with-current-buffer buffer
+               (hl-highlight-fontify)))
+           (if (eq ,database hl-highlights)
+               (hl-buffer-list t)
              (list (current-buffer))))))
 
 (defmacro hl-unhighlight-internal (regexp database index)
@@ -347,23 +352,23 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
      ;; Update index of colors.
      (unless ,database
        (setq ,index 0))
-     ;; Fontify buffer(s).
+     ;; Remove keywords for buffer(s).
      (mapc (lambda (buffer)
              (with-current-buffer buffer
                (while (setq keyword (hl-font-lock-keyword-p ,regexp))
-                 (font-lock-remove-keywords nil (list keyword)))
-               (hl-highlight-fontify)))
+                 (font-lock-remove-keywords nil (list keyword)))))
            ;; global or local?
            (if (eq ,database hl-highlights)
                (hl-buffer-list)
+             (list (current-buffer))))
+     ;; Fontify buffer(s).
+     (mapc (lambda (buffer)
+             (with-current-buffer buffer
+               (hl-highlight-fontify)))
+           ;; global or local?
+           (if (eq ,database hl-highlights)
+               (hl-buffer-list t)
              (list (current-buffer))))))
-
-(defun hl-sync-global-highlights ()
-  "Synchronize global highlights at `find-file-hook'."
-  (let ((index 0)
-        highlights)
-    (dolist (regexp (reverse hl-highlights))
-      (hl-highlight-internal regexp highlights index))))
 
 (defun hl-add-highlight-overlays ()
   "Add overlays only at current line."
@@ -410,21 +415,34 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
       (mapc 'delete-overlay hl-overlays)
       (setq hl-overlays nil))))
 
-(defadvice hl-line-highlight (after hl-line-add-overlays)
+(defadvice hl-line-highlight (after hl-add-highlight-overlays)
   "Add overlays after highlighting current line."
   (hl-add-highlight-overlays))
 
-(defadvice hl-line-unhighlight (after hl-line-remove-overlays)
+(defadvice hl-line-unhighlight (after hl-remove-highlight-overlays)
   "Remove overlays after unhighlighting current line."
   (hl-remove-highlight-overlays))
 
-(defadvice global-hl-line-highlight (after global-hl-line-add-overlays)
+(defadvice global-hl-line-highlight (after hl-add-highlight-overlays)
   "Add overlays after highlighting current line."
   (hl-add-highlight-overlays))
 
-(defadvice global-hl-line-unhighlight (after global-hl-line-remove-overlays)
+(defadvice global-hl-line-unhighlight (after hl-remove-highlight-overlays)
   "Remove overlays after unhighlighting current line."
   (hl-remove-highlight-overlays))
+
+(defadvice switch-to-buffer (after hl-highlight-fontify)
+  "Synchronize global highlights for buffer."
+  (let ((live-buffers (mapcar 'window-buffer (window-list))))
+    ;; Check keywords for new opened file.
+    (let ((index 0)
+          highlights)
+      (dolist (regexp (reverse hl-highlights))
+        (and (not (assoc regexp font-lock-keywords))
+             (hl-highlight-internal regexp highlights index))))
+    ;; Fontify buffer.
+    (and (memq (current-buffer) live-buffers)
+         (hl-highlight-fontify))))
 
 (defun hl-add-menu-items ()
   )
@@ -510,26 +528,27 @@ You can call `hl-restore-highlights' to revert highlights of last session."
 could call `hl-save-highlights' function."
   (interactive)
   ;; Import.
-  (let ((save (hl-import hl-highlight-save-file)))
+  (let* ((save (hl-import hl-highlight-save-file))
+         (global (plist-get save :global))
+         (local (plist-get save :local)))
     ;; Restore global highlights.
     (hl-unhighlight-all-global)
-    (let ((highlights (plist-get save :global)))
-      (when highlights
-        (dolist (regexp highlights)
-          (hl-highlight-internal regexp
-                                 hl-highlights hl-colors-index))))
+    (when global
+      (dolist (regexp global)
+        (hl-highlight-internal regexp
+                               hl-highlights hl-colors-index)))
     ;; Restore local highlights.
-    (let ((local (plist-get save :local))
-          highlights)
-      (when local
-        (dolist (buffer (hl-buffer-list t))
-          (with-current-buffer buffer
-            (when (setq highlights (assoc (buffer-file-name) local))
-              (hl-unhighlight-all-local)
-              (dolist (regexp (cdr highlights))
-                (hl-highlight-internal regexp
-                                       hl-highlights-local
-                                       hl-colors-index-local)))))))))
+    (when local
+      (mapc (lambda (buffer)
+              (with-current-buffer buffer
+                (let ((highlights (assoc (buffer-file-name) local)))
+                  (when highlights
+                    (hl-unhighlight-all-local)
+                    (dolist (regexp (cdr highlights))
+                      (hl-highlight-internal regexp
+                                             hl-highlights-local
+                                             hl-colors-index-local))))))
+            (hl-buffer-list t)))))
 
 ;;;###autoload
 (define-minor-mode hl-highlight-mode
@@ -543,11 +562,11 @@ could call `hl-save-highlights' function."
   (if hl-highlight-mode
       (progn
         ;; Highlight core.
-        (ad-enable-advice 'hl-line-highlight 'after 'hl-line-add-overlays)
-        (ad-enable-advice 'hl-line-unhighlight 'after 'hl-line-remove-overlays)
-        (ad-enable-advice 'global-hl-line-highlight 'after 'global-hl-line-add-overlays)
-        (ad-enable-advice 'global-hl-line-unhighlight 'after 'global-hl-line-remove-overlays)
-        (add-hook 'find-file-hook 'hl-sync-global-highlights t)
+        (ad-enable-advice 'hl-line-highlight 'after 'hl-add-highlight-overlays)
+        (ad-enable-advice 'hl-line-unhighlight 'after 'hl-remove-highlight-overlays)
+        (ad-enable-advice 'global-hl-line-highlight 'after 'hl-add-highlight-overlays)
+        (ad-enable-advice 'global-hl-line-unhighlight 'after 'hl-remove-highlight-overlays)
+        (ad-enable-advice 'switch-to-buffer 'after 'hl-highlight-fontify)
         (add-hook 'kill-emacs-hook 'hl-save-highlights t)
         ;; Add menu items.
         (hl-add-menu-items)
@@ -560,16 +579,17 @@ could call `hl-save-highlights' function."
     ;; Add menu items.
     (hl-remove-menu-items)
     ;; Highlight core.
-    (ad-disable-advice 'hl-line-highlight 'after 'hl-line-add-overlays)
-    (ad-disable-advice 'hl-line-unhighlight 'after 'hl-line-remove-overlays)
-    (ad-disable-advice 'global-hl-line-highlight 'after 'global-hl-line-add-overlays)
-    (ad-disable-advice 'global-hl-line-unhighlight 'after 'global-hl-line-remove-overlays)
-    (remove-hook 'find-file-hook 'hl-sync-global-highlights)
+    (ad-disable-advice 'hl-line-highlight 'after 'hl-add-highlight-overlays)
+    (ad-disable-advice 'hl-line-unhighlight 'after 'hl-remove-highlight-overlays)
+    (ad-disable-advice 'global-hl-line-highlight 'after 'hl-add-highlight-overlays)
+    (ad-disable-advice 'global-hl-line-unhighlight 'after 'hl-remove-highlight-overlays)
+    (ad-disable-advice 'switch-to-buffer 'after 'hl-highlight-fontify)
     (remove-hook 'kill-emacs-hook 'hl-save-highlights))
   (mapc 'ad-activate '(hl-line-highlight
-                       global-hl-line-highlight
                        hl-line-unhighlight
-                       global-hl-line-unhighlight)))
+                       global-hl-line-highlight
+                       global-hl-line-unhighlight
+                       switch-to-buffer)))
 
 ;; Restore highlight when Emacs initializing.
 (and load-file-name
