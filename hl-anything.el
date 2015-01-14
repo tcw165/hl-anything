@@ -335,7 +335,7 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                (hl-highlight-fontify)))
            ;; global or local?
            (if (eq ,database hl-highlights)
-               (hl-buffer-list t)
+               (hl-buffer-list)
              (list (current-buffer))))))
 
 (defmacro hl-unhighlight-internal (regexp database index)
@@ -355,7 +355,7 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                (hl-highlight-fontify)))
            ;; global or local?
            (if (eq ,database hl-highlights)
-               (hl-buffer-list t)
+               (hl-buffer-list)
              (list (current-buffer))))))
 
 (defun hl-sync-global-highlights ()
