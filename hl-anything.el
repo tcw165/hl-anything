@@ -61,6 +61,7 @@
 ;;
 ;; TODO:
 ;; -----
+;; * Advise `self-insert-command'???
 ;; * Highlight enclosing syntax in REGEXP.
 ;; * Add menu items and tool-bar buttons.
 ;; 
@@ -288,20 +289,24 @@ Format: (START . END)"
     (if (eq 'prepend (nth 3 keyword))
         keyword nil)))
 
-(defun hl-buffer-list (&optional only-file)
-  (delq nil (mapcar (lambda (buffer)
-                      (if only-file
-                          (and (buffer-live-p buffer)
-                               (buffer-file-name buffer)
-                               buffer)
+(defun hl-buffer-list (&optional window? file?)
+  (if window?
+      (delq nil (mapcar (lambda (window)
+                          (let ((buffer (window-buffer window)))
+                            (if file?
+                                (and (buffer-file-name buffer) buffer)
+                              buffer)))
+                        (window-list)))
+    (delq nil (mapcar (lambda (buffer)
                         (and (buffer-live-p buffer)
-                             buffer)))
-                    (buffer-list))))
+                             (if file?
+                                 (and (buffer-file-name buffer) buffer)
+                               buffer)))
+                      (buffer-list)))))
 
 (defun hl-highlight-fontify ()
   (save-excursion
-    (font-lock-fontify-region (point-min)
-                              (point-max))))
+    (font-lock-fontify-region (point-min) (point-max))))
 
 (defmacro hl-highlight-internal (regexp database index)
   "Use `font-lock-add-keywords' to add keywords and add overlays for specific 
@@ -330,8 +335,8 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                (hl-highlight-fontify)))
            ;; global or local?
            (if (eq ,database hl-highlights)
-               (hl-buffer-list)
-             `(,(current-buffer))))))
+               (hl-buffer-list t)
+             (list (current-buffer))))))
 
 (defmacro hl-unhighlight-internal (regexp database index)
   "Use `font-lock-remove-keywords' to remove keywords."
@@ -350,8 +355,8 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                (hl-highlight-fontify)))
            ;; global or local?
            (if (eq ,database hl-highlights)
-               (hl-buffer-list)
-             `(,(current-buffer))))))
+               (hl-buffer-list t)
+             (list (current-buffer))))))
 
 (defun hl-sync-global-highlights ()
   "Synchronize global highlights at `find-file-hook'."
@@ -399,7 +404,7 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
 (defun hl-remove-highlight-overlays (&optional all?)
   "Remove overlays only at current line."
   (dolist (buffer (if all?
-                      (hl-buffer-list)
+                      (hl-buffer-list t)
                     (list (current-buffer))))
     (with-current-buffer buffer
       (mapc 'delete-overlay hl-overlays)
@@ -489,7 +494,7 @@ You can call `hl-restore-highlights' to revert highlights of last session."
     (setq save (plist-put save :global (reverse hl-highlights)))
     ;; Save local highlights.
     (let (local)
-      (dolist (buffer (hl-buffer-list t))
+      (dolist (buffer (hl-buffer-list nil t))
         (with-current-buffer buffer
           (and hl-highlights-local
                (push (cons (buffer-file-name)
@@ -504,27 +509,27 @@ You can call `hl-restore-highlights' to revert highlights of last session."
   "Load highligts from `hl-highlight-save-file' file. Before calling this, you 
 could call `hl-save-highlights' function."
   (interactive)
-  (unless hl-highlight-mode
-    (hl-highlight-mode 1))
   ;; Import.
   (let ((save (hl-import hl-highlight-save-file)))
     ;; Restore global highlights.
     (hl-unhighlight-all-global)
     (let ((highlights (plist-get save :global)))
-      (dolist (regexp highlights)
-        (hl-highlight-internal regexp
-                               hl-highlights hl-colors-index)))
+      (when highlights
+        (dolist (regexp highlights)
+          (hl-highlight-internal regexp
+                                 hl-highlights hl-colors-index))))
     ;; Restore local highlights.
     (let ((local (plist-get save :local))
           highlights)
-      (dolist (buffer (hl-buffer-list))
-        (with-current-buffer buffer
-          (when (setq highlights (assoc (buffer-file-name) local))
-            (hl-unhighlight-all-local)
-            (dolist (regexp (cdr highlights))
-              (hl-highlight-internal regexp
-                                     hl-highlights-local
-                                     hl-colors-index-local))))))))
+      (when local
+        (dolist (buffer (hl-buffer-list t))
+          (with-current-buffer buffer
+            (when (setq highlights (assoc (buffer-file-name) local))
+              (hl-unhighlight-all-local)
+              (dolist (regexp (cdr highlights))
+                (hl-highlight-internal regexp
+                                       hl-highlights-local
+                                       hl-colors-index-local)))))))))
 
 ;;;###autoload
 (define-minor-mode hl-highlight-mode
@@ -547,7 +552,7 @@ could call `hl-save-highlights' function."
         ;; Add menu items.
         (hl-add-menu-items)
         ;; 1st time to add highlights overlays.
-        (dolist (buffer (hl-buffer-list))
+        (dolist (buffer (hl-buffer-list t))
           (with-current-buffer buffer
             (hl-add-highlight-overlays))))
     ;; Remove overlays.
