@@ -5,16 +5,18 @@
 Highlight Symbols, Selections, Enclosing Parens and More
 ===================================================================
 
-Highlight things at point, selections, enclosing parentheses with different colors. Fix grumbling issue of highlights being overridden by `hl-line-mode` and `global-hl-line-mode`.
+Highlight things at point, selections, enclosing parentheses with different colors. **Fix grumbling issue of highlights being overridden by** `hl-line-mode` **and** `global-hl-line-mode`.
 
 Demo
 ----
-![hl-anything screenshot](demo/all.gif "hl-anything demo")
+![hl-anything screenshot](demo/all.gif "demo")
 
 Basic Usage - First Step, Enable `hl-highlight-mode`
 ----------------------------------------------------
 There're **GLOBAL** and **LOCAL** kinds of highlights.
 The global highlights appear in every buffer; The local highlights only exist in the current buffer.
+
+![hl-anything screenshot](demo/toolbar.png "toolbar")
 
 Global Highlights:
 
@@ -37,7 +39,7 @@ Search Highlights
 -----------------
 Put your cursor on the highlight and use following commands to search highlights.
 
-* Command **`hl-find-thing-forwardly`** and **`hl-find-thing-backwardly`** to go through highlights.
+* Command **`hl-find-next-thing`** and **`hl-find-prev-thing`** to go through highlights.
 
 ![hl-anything screenshot](demo/highlight-search.gif "search")
 
@@ -46,7 +48,7 @@ Save & Restore Highlights
 Once `hl-highlight-mode` is on, it will save highlights automatically before Emacs exits.
 It will also try to restore highlights when Emacs opens.
 
-* Command **`hl-save-highlights`** to save highlights; **`hl-restore-highlights`** to restore highlights.
+* `M-x` **`hl-save-highlights`** to save highlights; `M-x` **`hl-restore-highlights`** to restore highlights.
 * Saved file-path is stored in `hl-highlight-save-file` variable.
 
 Parenthese Highlight, `hl-paren-mode`
@@ -65,12 +67,12 @@ There's a special faces storage, `hl-highlight-special-faces`. The faces here ar
 Example:
 
 ```lisp
+;; 'YOUR-FACE will never be hidden by current line highlight.
 (add-to-list 'hl-highlight-special-faces 'YOUR-FACE t)
 ```
 
 TODO
 ----
-* Add menu items and tool-bar buttons.
 * Highlight Enclosing syntax in Emacs REGEX.
 * Defines all the parenthesis pairs using a variable that can be highlighted.
   [issue#8](https://github.com/boyw165/hl-anything/issues/8)

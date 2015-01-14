@@ -52,8 +52,8 @@
 ;; M-x `hl-restore-highlights'
 ;; Save & Restore highlights.
 ;;
-;; M-x `hl-find-thing-forwardly'
-;; M-x `hl-find-thing-backwardly'
+;; M-x `hl-find-next-thing'
+;; M-x `hl-find-prev-thing'
 ;; Search highlights.
 ;;
 ;; M-x `hl-paren-mode'
@@ -69,8 +69,11 @@
 ;;
 ;;; Change Log:
 ;;
-;; 2015-01-10
+;; 2015-01-13
 ;; * Use advised function to improve performance.
+;; * Add menu items and tool-bar buttons.
+;; * NOTE: Change `hl-find-thing-backwardly' to `hl-find-prev-thing'.
+;; * NOTE: Change `hl-find-thing-forwardly' to `hl-find-next-thing'.
 ;;
 ;; 2014-11-24
 ;; * Support `hl-highlight-thingatpt-global' and `hl-unhighlight-all-global'.
@@ -149,15 +152,15 @@
   :group 'hl-anything)
 
 (defcustom hl-before-find-thing-hook nil
-  "Hook for doing something before `hl-find-thing-forwardly' and 
-`hl-find-thing-backwardly'. This hook has one argument, (REGEXP_STRING BEG END).
+  "Hook for doing something before `hl-find-next-thing' and 
+`hl-find-prev-thing'. This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
   :group 'hl-anything)
 
 (defcustom hl-after-find-thing-hook nil
-  "Hook for doing something after `hl-find-thing-forwardly' and 
-`hl-find-thing-backwardly'. This hook has one argument, (REGEXP_STRING BEG END).
+  "Hook for doing something after `hl-find-next-thing' and 
+`hl-find-prev-thing'. This hook has one argument, (REGEXP_STRING BEG END).
 Maybe you'll need it for history and navigation feature."
   :type '(repeat function)
   :group 'hl-anything)
@@ -445,10 +448,55 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
          (hl-highlight-fontify))))
 
 (defun hl-add-menu-items ()
-  )
+  "Add menu and tool-bar buttons."
+  ;; Menu items.
+  (define-key-after global-map [menu-bar edit hl-group]
+    (cons "Highlight" (make-sparse-keymap))
+    'separator-search)
+  (let ((map (lookup-key global-map [menu-bar edit hl-group])))
+    (define-key-after map [highlight-configuration]
+      '(menu-item "Configuration" hl-configuration))
+    (define-key-after map [highlight-separator-1]
+      '(menu-item "--single-line"))
+    (define-key-after map [highlight-thingatpt-global]
+      '(menu-item "Toggle Global Highlight" hl-highlight-thingatpt-global))
+    (define-key-after map [killall-highlights-global]
+      '(menu-item "Remove All Global Highlights" hl-unhighlight-all-global))
+    (define-key-after map [highlight-separator-2]
+      '(menu-item "--single-line"))
+    (define-key-after map [highlight-thingatpt-local]
+      '(menu-item "Toggle Local Highlight" hl-highlight-thingatpt-local))
+    (define-key-after map [killall-highlights-local]
+      '(menu-item "Remove All Local Highlights" hl-unhighlight-all-local))
+    (define-key-after map [highlight-separator-3]
+      '(menu-item "--single-line"))
+    (define-key-after map [find-prev-highlight]
+      '(menu-item "Find Next Thing" hl-find-prev-thing))
+    (define-key-after map [find-next-highlight]
+      '(menu-item "Find Previous Thing" hl-find-next-thing)))
+  ;; Tool-bar buttons.
+  (when tool-bar-mode
+    (define-key-after tool-bar-map [highlight-separator-1]
+      '("--")
+      'paste)
+    (define-key-after tool-bar-map [toggle-global-highlight]
+      '(menu-item "Toggle Global Highlight" hl-highlight-thingatpt-global
+                  :image (find-image '((:type xpm :file "images/toggle-global-highlight.xpm")))
+                  :enable (not (minibufferp)))
+      'highlight-separator-1)
+    (define-key-after tool-bar-map [killall-global-highlights]
+      '(menu-item "Toggle Global Highlight" hl-unhighlight-all-global
+                  :image (find-image '((:type xpm :file "images/killall-highlights.xpm")))
+                  :enable (not (minibufferp)))
+      'toggle-global-highlight)))
 
 (defun hl-remove-menu-items ()
-  )
+  ;; Menu items.
+  (define-key global-map [menu-bar edit hl-group] nil)
+  ;; Tool-bar buttons.
+  (when tool-bar-mode
+    (define-key-after tool-bar-map [toggle-global-highlight] nil)
+    (define-key-after tool-bar-map [killall-global-highlights] nil)))
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-global ()
@@ -576,7 +624,7 @@ could call `hl-save-highlights' function."
             (hl-add-highlight-overlays))))
     ;; Remove overlays.
     (hl-remove-highlight-overlays t)
-    ;; Add menu items.
+    ;; Remove menu items.
     (hl-remove-menu-items)
     ;; Highlight core.
     (ad-disable-advice 'hl-line-highlight 'after 'hl-add-highlight-overlays)
@@ -595,6 +643,15 @@ could call `hl-save-highlights' function."
 (and load-file-name
      hl-auto-save-restore-highlights
      (hl-restore-highlights))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Common ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;###autoload
+(defun hl-configuration ()
+  "Configuration"
+  (interactive)
+  (customize-group 'hl-anything))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Select & Search Highlighted Things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -625,13 +682,13 @@ could call `hl-save-highlights' function."
       (run-hook-with-args hl-after-find-thing-hook regexp))))
 
 ;;;###autoload
-(defun hl-find-thing-forwardly ()
+(defun hl-find-next-thing ()
   "Find regexp forwardly and jump to it."
   (interactive)
   (hl-find-thing 1))
 
 ;;;###autoload
-(defun hl-find-thing-backwardly ()
+(defun hl-find-prev-thing ()
   "Find regexp backwardly and jump to it."
   (interactive)
   (hl-find-thing -1))
