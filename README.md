@@ -83,7 +83,6 @@ TODO
 ----
 * Highlight Enclosing syntax in Emacs REGEX.
 * Defines all the parenthesis pairs using a variable that can be highlighted. [issue#8](https://github.com/boyw165/hl-anything/issues/8)
-* Add menu item and tool-bar button for `hl-global-highlight-on/off`.
 
 Contribution
 ------------

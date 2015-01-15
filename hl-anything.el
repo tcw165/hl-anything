@@ -63,14 +63,13 @@
 ;; -----
 ;; * Advise `self-insert-command'???
 ;; * Highlight enclosing syntax in REGEXP.
-;; * Add menu item and tool-bar button for `hl-global-highlight-on/off'.
 ;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Change Log:
 ;;
 ;; 2015-01-15
-;; * Add `hl-global-highlight-on/off'.
+;; * Add `hl-global-highlight-on/off', also its menu and tool-bar button.
 ;;
 ;; 2015-01-13
 ;; * Use advised function to improve performance.
@@ -211,9 +210,6 @@ Or call `hl-save-highlights' to save highlights."
 (defvar hl-region nil
   "A struct, (START . END), is present when `region-active-p' it t. It is used 
 in `hl-get-text-highlight-face' to ignore region.")
-
-(defvar hl-on/off nil
-  "A switch of global highlights.")
 
 (defvar hl-colors-index 0)
 
@@ -517,6 +513,12 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
       '(menu-item "Toggle Global Highlight" hl-highlight-thingatpt-global))
     (define-key-after map [killall-highlights-global]
       '(menu-item "Remove All Global Highlights" hl-unhighlight-all-global))
+    (define-key-after map [global-highlights-on]
+      '(menu-item "Turn Global Highlights On" hl-global-highlight-on/off
+                  :visible (null hl-highlights)))
+    (define-key-after map [global-highlights-off]
+      '(menu-item "Turn Global Highlights Off" hl-global-highlight-on/off
+                  :visible hl-highlights))
     (define-key-after map [highlight-separator-2]
       '(menu-item "--single-line"))
     (define-key-after map [highlight-thingatpt-local]
@@ -540,10 +542,22 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
                   :enable (not (minibufferp)))
       'highlight-separator-1)
     (define-key-after tool-bar-map [killall-global-highlights]
-      '(menu-item "Toggle Global Highlight" hl-unhighlight-all-global
+      '(menu-item "Kill All Global Highlights" hl-unhighlight-all-global
                   :image (find-image '((:type xpm :file "images/killall-highlights.xpm")))
                   :enable (not (minibufferp)))
-      'toggle-global-highlight)))
+      'toggle-global-highlight)
+    (define-key-after tool-bar-map [global-highlights-on]
+      '(menu-item "Global Highlights On" hl-global-highlight-on/off
+                  :image (find-image '((:type xpm :file "images/on.xpm")))
+                  :visible hl-highlights
+                  :enable (not (minibufferp)))
+      'killall-global-highlights)
+    (define-key-after tool-bar-map [global-highlights-off]
+      '(menu-item "Global Highlights Off" hl-global-highlight-on/off
+                  :image (find-image '((:type xpm :file "images/off.xpm")))
+                  :visible (null hl-highlights)
+                  :enable (not (minibufferp)))
+      'global-highlights-on)))
 
 (defun hl-remove-menu-items ()
   ;; Menu items.
@@ -551,7 +565,9 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
   ;; Tool-bar buttons.
   (when tool-bar-mode
     (define-key-after tool-bar-map [toggle-global-highlight] nil)
-    (define-key-after tool-bar-map [killall-global-highlights] nil)))
+    (define-key-after tool-bar-map [killall-global-highlights] nil)
+    (define-key-after tool-bar-map [global-highlights-on] nil)
+    (define-key-after tool-bar-map [global-highlights-off] nil)))
 
 ;;;###autoload
 (defun hl-highlight-thingatpt-global ()
@@ -656,8 +672,7 @@ could call `hl-save-highlights' function."
 (defun hl-global-highlight-on/off ()
   (interactive)
   (when hl-highlight-mode
-    (setq hl-on/off (not hl-on/off))
-    (if hl-on/off
+    (if (null hl-highlights)
         (progn
           ;; Restore highlights.
           (hl-restore-highlights)
@@ -666,10 +681,14 @@ could call `hl-save-highlights' function."
             (with-current-buffer buffer
               (hl-add-highlight-overlays))))
       ;; Save highlights
-      (hl-save-highlights)
+      (let (save)
+        (setq save (plist-put save :global (reverse hl-highlights)))
+        (hl-export hl-highlight-save-file save))
       ;; Remove overlays.
       (hl-unhighlight-all-global)
-      (hl-remove-highlight-overlays t))))
+      (hl-remove-highlight-overlays t))
+    (when (called-interactively-p 'interactive)
+      (message "Global highlights %s!" (if hl-highlights "on" "off")))))
 
 ;;;###autoload
 (define-minor-mode hl-highlight-mode
@@ -691,8 +710,6 @@ could call `hl-save-highlights' function."
         ;; Restore highlight when Emacs initializing.
         (and hl-auto-save-restore-highlights
              (hl-restore-highlights))
-        ;; on/off
-        (setq hl-on/off t)
         ;; 1st time to add highlights overlays.
         (dolist (buffer (hl-buffer-list t))
           (with-current-buffer buffer
@@ -707,9 +724,7 @@ could call `hl-save-highlights' function."
     (hl-unhighlight-all-global)
     (hl-remove-highlight-overlays t)
     ;; Remove menu items.
-    (hl-remove-menu-items)
-    ;; on/off
-    (setq hl-on/off nil)))
+    (hl-remove-menu-items)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Select & Search Highlighted Things ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
