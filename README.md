@@ -35,11 +35,19 @@ You can change foreground and background colors of highlights:
 
 ![hl-anything screenshot](demo/highlight-colors.png "colors")
 
+Turn Highlight On/Off
+---------------------
+`M-x` **`hl-global-highlight-on/off`** to turn highlight on or off!
+
+Example:
+
+![hl-anything screenshot](demo/highlight-onoff.gif "highlight on/off")
+
 Search Highlights
 -----------------
 Put your cursor on the highlight and use following commands to search highlights.
 
-* Command **`hl-find-next-thing`** and **`hl-find-prev-thing`** to go through highlights.
+`M-x` **`hl-find-next-thing`** and **`hl-find-prev-thing`** to go through highlights.
 
 ![hl-anything screenshot](demo/highlight-search.gif "search")
 
@@ -58,9 +66,9 @@ Parenthese Highlight, `hl-paren-mode`
 * Colors of outward parentheses are stored in `hl-outward-paren-fg-colors` and `hl-outward-paren-bg-colors` variables.
 * Colors of inward parentheses are stored in `hl-inward-paren-fg-color` variables.
 
-Advanced
---------
-There's a special faces storage, `hl-highlight-special-faces`. The faces here are always on the top of the current line highlight (`hl-line-mode` and `global-hl-line-mode`).
+Advanced - `hl-highlight-special-faces`
+---------------------------------------
+This is a special faces storage. The faces storing here are always on the top of the current line highlight (`hl-line-mode` and `global-hl-line-mode`).
 
 ![hl-anything screenshot](demo/highlight-special-faces.png "hl-paren-mode")
 
@@ -74,8 +82,8 @@ Example:
 TODO
 ----
 * Highlight Enclosing syntax in Emacs REGEX.
-* Defines all the parenthesis pairs using a variable that can be highlighted.
-  [issue#8](https://github.com/boyw165/hl-anything/issues/8)
+* Defines all the parenthesis pairs using a variable that can be highlighted. [issue#8](https://github.com/boyw165/hl-anything/issues/8)
+* Add menu item and tool-bar button for `hl-global-highlight-on/off`.
 
 Contribution
 ------------
