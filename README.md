@@ -82,7 +82,9 @@ Example:
 TODO
 ----
 * Highlight Enclosing syntax in Emacs REGEX.
-* Defines all the parenthesis pairs using a variable that can be highlighted. [issue#8](https://github.com/boyw165/hl-anything/issues/8)
+* Integrate with `helm` to give ability to navigate highlights.
+![hl-anything screenshot](demo/helm-hl-anything.jpg "helm hl-anything")
+* Define all the parenthesis pairs using a variable that can be highlighted. [issue#8](https://github.com/boyw165/hl-anything/issues/8)
 
 Contribution
 ------------
