@@ -68,11 +68,12 @@
 ;;
 ;;; Change Log:
 ;;
-;; 2015-01-15
-;; * Add `hl-global-highlight-on/off', also its menu and tool-bar button.
+;; 2015-02-03
+;; * Add `hl-highlight-flexible-match' switch.
 ;;
-;; 2015-01-13
+;; 2015-01-15
 ;; * Use advised function to improve performance.
+;; * Add `hl-global-highlight-on/off', also its menu and tool-bar button.
 ;; * Add menu items and tool-bar buttons.
 ;; * NOTE: Change `hl-find-thing-backwardly' to `hl-find-prev-thing'.
 ;; * NOTE: Change `hl-find-thing-forwardly' to `hl-find-next-thing'.
@@ -183,16 +184,19 @@ will also be created for these faces at current line."
   :group 'hl-anything)
 
 (defcustom hl-highlight-save-file "~/.emacs.d/.hl-save"
-  "A file storing highlights. Call `hl-restore-highlights' to restore highlights.
-See `hl-save-highlights' for detailed format."
-  :type 'string
+  "A file storing highlights. Value of nil means don't save and restore
+highlight. See `hl-save-highlights' and `hl-restore-highlights'."
+  :type '(choice (string :tag "User defined")
+                 (const :tag "Disabed" nil))
   :group 'hl-anything)
 
-(defcustom hl-auto-save-restore-highlights t
-  "TRUE to indicate storing highlights before killing Emacs and restore them next 
-time. You can alos call `hl-restore-highlights' manually to restore highlights;
-Or call `hl-save-highlights' to save highlights."
-  :type 'boolean
+(defcustom hl-highlight-flexible-match t
+  "t means flexible match of highlight for arbitrary words or sentence; 
+nil is strict match which means the REGEXP is wrapped by 
+`hl-strict-wrapped-pattern'.
+NOTE: Disable it will lose function of highlight for selection or sentence."
+  :type '(choice (const :tag "Enabled" t)
+                 (const :tag "Disabed" nil))
   :group 'hl-anything)
 
 (defun hl-set-advices (symbol value)
@@ -206,6 +210,9 @@ Or call `hl-save-highlights' to save highlights."
   :initialize 'custom-initialize-default
   :set 'hl-set-advices
   :group 'hl-advice)
+
+(defconst hl-strict-wrapped-pattern
+  (if (>= emacs-major-version 22) '("\\_<" . "\\_>") '("\\<" . "\\>")))
 
 (defvar hl-region nil
   "A struct, (START . END), is present when `region-active-p' it t. It is used 
@@ -248,6 +255,11 @@ in `hl-get-text-highlight-face' to ignore region.")
     (when bound
       (let ((text (regexp-quote
                    (buffer-substring-no-properties (car bound) (cdr bound)))))
+        ;; Strict match.
+        (unless hl-highlight-flexible-match
+          (setq text (concat (car hl-strict-wrapped-pattern)
+                             text
+                             (cdr hl-strict-wrapped-pattern))))
         ;; Replace space as "\\s-+"
         (setq text (replace-regexp-in-string "\\s-+" "\\\\s-+" text))
         (list text (car bound) (cdr bound))))))
@@ -637,14 +649,16 @@ You can call `hl-restore-highlights' to revert highlights of last session."
                      local))))
       (setq save (plist-put save :local local)))
     ;; Export.
-    (hl-export hl-highlight-save-file save)))
+    (and (stringp hl-highlight-save-file)
+         (hl-export hl-highlight-save-file save))))
 
 ;;;###autoload
 (defun hl-restore-highlights ()
   "Load highligts from `hl-highlight-save-file' file. Before calling this, you 
 could call `hl-save-highlights' function."
   (interactive)
-  (when hl-highlight-mode
+  (when (and hl-highlight-mode
+             (stringp hl-highlight-save-file))
     ;; Import.
     (let* ((save (hl-import hl-highlight-save-file))
            (global (plist-get save :global))
@@ -708,8 +722,7 @@ could call `hl-save-highlights' function."
         ;; Add menu items.
         (hl-add-menu-items)
         ;; Restore highlight when Emacs initializing.
-        (and hl-auto-save-restore-highlights
-             (hl-restore-highlights))
+        (hl-restore-highlights)
         ;; 1st time to add highlights overlays.
         (dolist (buffer (hl-buffer-list t))
           (with-current-buffer buffer
