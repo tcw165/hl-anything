@@ -227,6 +227,9 @@ in `hl-get-text-highlight-face' to ignore region.")
   "Overlays for highlighted things. Prevent them to being hide by `hl-line-mode'.")
 (make-variable-buffer-local 'hl-overlays)
 
+(defconst hl-symbol-border-pattern
+  (if (>= emacs-major-version 22) '("\\_<" . "\\_>") '("\\<" . "\\>")))
+
 (defun hl-export (filename data)
   (and (file-writable-p filename)
        (with-temp-file filename
@@ -246,8 +249,10 @@ in `hl-get-text-highlight-face' to ignore region.")
                    (cons (region-beginning) (region-end))
                  (hl-bounds-of-thingatpt))))
     (when bound
-      (let ((text (regexp-quote
-                   (buffer-substring-no-properties (car bound) (cdr bound)))))
+      (let ((text (concat (car hl-symbol-border-pattern)
+                          (regexp-quote (buffer-substring-no-properties
+                                         (car bound) (cdr bound)))
+                          (cdr hl-symbol-border-pattern))))
         ;; Replace space as "\\s-+"
         (setq text (replace-regexp-in-string "\\s-+" "\\\\s-+" text))
         (list text (car bound) (cdr bound))))))
