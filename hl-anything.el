@@ -1,6 +1,6 @@
 ;;; hl-anything.el --- Highlight symbols, selections, enclosing parens and more.
 ;;
-;; Copyright (C) 2014
+;; Copyright (C) 2014-2015
 ;;
 ;; Author: boyw165
 ;; Version: 20150115.1500
@@ -199,16 +199,14 @@ NOTE: Disable it will lose function of highlight for selection or sentence."
                  (const :tag "Disabed" nil))
   :group 'hl-anything)
 
-(defun hl-set-advices (symbol value)
-  (hl-setup-customizable-advices nil)
-  (set symbol value)
-  (hl-setup-customizable-advices t))
-
 (defcustom hl-global-highlight-advised-function nil
-  "After-advised function list. See `'."
+  "After-advised function list for global highlight."
   :type '(repeat function)
   :initialize 'custom-initialize-default
-  :set 'hl-set-advices
+  :set (lambda (symb val)
+         (hl-setup-customizable-advices nil)
+         (set symb val)
+         (hl-setup-customizable-advices t))
   :group 'hl-advice)
 
 (defconst hl-strict-wrapped-pattern
