@@ -199,6 +199,13 @@ NOTE: Disable it will lose function of highlight for selection or sentence."
                  (const :tag "Disabed" nil))
   :group 'hl-anything)
 
+(defcustom hl-highlight-cycle-search nil
+  "t means search will begin from the start when it reach bottom. See
+`hl-find-prev-thing' and `hl-find-prev-thing'."
+  :type '(choice (const :tag "Enabled" t)
+                 (const :tag "Disabed" nil))
+  :group 'hl-anything)
+
 (defcustom hl-global-highlight-advised-function nil
   "After-advised function list for global highlight."
   :type '(repeat function)
@@ -745,22 +752,32 @@ could call `hl-save-highlights' function."
          (match (nth 0 regexp))
          (beg (nth 1 regexp))
          (end (nth 2 regexp))
-         (case-fold-search t))
+         (case-fold-search t)
+         stop?)
     (when regexp
       ;; Hook before searching.
       (run-hook-with-args hl-before-find-thing-hook regexp)
-      (deactivate-mark t)
+      (deactivate-mark)
       (goto-char (nth (if (> step 0)
                           ;; Move to end.
                           2
                         ;; Move to beginning.
                         1) regexp))
-      (if (re-search-forward match nil t step)
-          (progn
-            (set-marker (mark-marker) (match-beginning 0))
-            (goto-char (match-end 0)))
-        (set-marker (mark-marker) beg)
-        (goto-char end))
+      (while (null stop?)
+        (if (re-search-forward match nil t step)
+            (progn
+              (set-marker (mark-marker) (match-beginning 0))
+              (goto-char (match-end 0))
+              ;; Break the loop when matched.
+              (setq stop? t))
+          (set-marker (mark-marker) beg)
+          (goto-char end)
+          ;; Start search from the start if `hl-highlight-cycle-search' is t,
+          (if hl-highlight-cycle-search
+              (goto-char (point-min))
+            (setq stop? t))))
+      ;; `hl-highlight-cycle-search'
+      ;; TODO: deselect automatically.
       (activate-mark)
       ;; Hook after searching.
       (run-hook-with-args hl-after-find-thing-hook regexp))))
