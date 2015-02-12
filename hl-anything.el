@@ -770,11 +770,18 @@ could call `hl-save-highlights' function."
               (goto-char (match-end 0))
               ;; Break the loop when matched.
               (setq stop? t))
-          (set-marker (mark-marker) beg)
-          (goto-char end)
           ;; Start search from the start if `hl-highlight-cycle-search' is t,
           (if hl-highlight-cycle-search
-              (goto-char (point-min))
+              (goto-char (cond
+                          ((> step 0)
+                           (message "First one at the top.")
+                           (point-min))
+                          ((< step 0)
+                           (message "Last one at the bottom.")
+                           (point-max))))
+            ;; Stop searching.
+            (set-marker (mark-marker) beg)
+            (goto-char end)
             (setq stop? t))))
       ;; `hl-highlight-cycle-search'
       ;; TODO: deselect automatically.
