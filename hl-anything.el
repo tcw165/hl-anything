@@ -550,31 +550,24 @@ FACESPEC just at current line. See `hl-add-highlight-overlays'."
       '(menu-item "Find Previous Thing" hl-find-next-thing)))
   ;; Tool-bar buttons.
   (when tool-bar-mode
-    (define-key-after tool-bar-map [highlight-separator-1]
-      '("--")
-      'paste)
     (define-key-after tool-bar-map [toggle-global-highlight]
       '(menu-item "Toggle Global Highlight" hl-highlight-thingatpt-global
                   :image (find-image '((:type xpm :file "images/toggle-global-highlight.xpm")))
-                  :enable (not (minibufferp)))
-      'highlight-separator-1)
+                  :enable (not (minibufferp))))
     (define-key-after tool-bar-map [killall-global-highlights]
       '(menu-item "Kill All Global Highlights" hl-unhighlight-all-global
                   :image (find-image '((:type xpm :file "images/killall-highlights.xpm")))
-                  :enable (not (minibufferp)))
-      'toggle-global-highlight)
+                  :enable (not (minibufferp))))
     (define-key-after tool-bar-map [global-highlights-on]
       '(menu-item "Global Highlights On" hl-global-highlight-on/off
                   :image (find-image '((:type xpm :file "images/on.xpm")))
                   :visible hl-highlights
-                  :enable (not (minibufferp)))
-      'killall-global-highlights)
+                  :enable (not (minibufferp))))
     (define-key-after tool-bar-map [global-highlights-off]
       '(menu-item "Global Highlights Off" hl-global-highlight-on/off
                   :image (find-image '((:type xpm :file "images/off.xpm")))
                   :visible (null hl-highlights)
-                  :enable (not (minibufferp)))
-      'global-highlights-on)))
+                  :enable (not (minibufferp))))))
 
 (defun hl-remove-menu-items ()
   ;; Menu items.
