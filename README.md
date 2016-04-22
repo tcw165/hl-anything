@@ -5,6 +5,8 @@
 Highlight Symbols, Selections, Enclosing Parens and More
 ===================================================================
 
+**This repo was deprecated and moved to new place, `https://github.com/hl-anything/hl-anything-emacs`.**
+
 Highlight things at point, selections, enclosing parentheses with different colors. **Fix grumbling issue of highlights being overridden by** `hl-line-mode` **and** `global-hl-line-mode`.
 
 Demo
